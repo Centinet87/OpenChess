@@ -18,6 +18,7 @@ import {
 } from '@openchess/database';
 import { isLastOwnerError } from '../clubs/prisma-clubs.repository';
 import { BASE_PRISMA } from '../infrastructure/prisma.module';
+import { ClubSlugCache } from '../tenant/club-slug.cache';
 import { verifyPassword } from './crypto';
 
 type Base = ReturnType<typeof createPrismaClient>;
@@ -41,7 +42,10 @@ const LIVE_SUBSCRIPTION = ['pending', 'active', 'paused'];
  */
 @Injectable()
 export class AccountService {
-  constructor(@Inject(BASE_PRISMA) private readonly base: Base) {}
+  constructor(
+    @Inject(BASE_PRISMA) private readonly base: Base,
+    private readonly slugs: ClubSlugCache,
+  ) {}
 
   async export(userId: string): Promise<AccountExport> {
     const own = this.as({ userId });
@@ -258,11 +262,8 @@ export class AccountService {
     }
 
     for (const m of memberships) {
-      await this.leave(
-        userId,
-        m.clubId,
-        clubsToDelete.includes(m.clubId),
-      ).catch((error: unknown) => {
+      const deleteClub = clubsToDelete.includes(m.clubId);
+      await this.leave(userId, m.clubId, deleteClub).catch((error: unknown) => {
         // Otro dueño se fue al mismo tiempo (ver memberships_keep_owner).
         if (!isLastOwnerError(error)) throw error;
         throw conflict({
@@ -271,6 +272,8 @@ export class AccountService {
           clubs: [m.club],
         });
       });
+      // Si el subdominio se vuelve a usar, que no apunte al club borrado.
+      if (deleteClub) this.slugs.evict(m.club.slug);
     }
 
     await tenantTransaction(this.base, { userId }, (tx) => [

@@ -15,6 +15,7 @@ import {
 } from '@openchess/clubs';
 import { createPrismaClient, tenantTransaction } from '@openchess/database';
 import { BASE_PRISMA, TenantPrisma } from '../infrastructure/prisma.module';
+import { ClubSlugCache } from '../tenant/club-slug.cache';
 
 interface RoleRow {
   id: string;
@@ -69,6 +70,7 @@ export class PrismaClubsRepository
     private readonly prisma: TenantPrisma,
     @Inject(BASE_PRISMA)
     private readonly base: ReturnType<typeof createPrismaClient>,
+    private readonly slugs: ClubSlugCache,
   ) {}
 
   private get db() {
@@ -108,6 +110,9 @@ export class PrismaClubsRepository
       }
       throw error;
     }
+    // Si alguien visitó el subdominio antes (o era de un club borrado), que no
+    // quede el "no existe" o el id viejo en la caché.
+    this.slugs.evict(club.slug);
   }
 
   async listForUser(userId: string): Promise<MyClub[]> {

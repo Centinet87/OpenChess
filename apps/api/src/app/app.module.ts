@@ -16,6 +16,7 @@ import { PrismaModule } from '../infrastructure/prisma.module';
 import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
 import { RatingsModule } from '../ratings/ratings.module';
 import { TenantMiddleware } from '../tenant/tenant.middleware';
+import { TenantModule } from '../tenant/tenant.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { AppController } from './app.controller';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     ConfigModule,
     PrismaModule,
+    TenantModule,
     IdentityModule,
     ClubsModule,
     GamesModule,

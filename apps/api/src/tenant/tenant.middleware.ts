@@ -10,6 +10,7 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 import { resolveClubSlug } from './club-slug';
+import { ClubSlugCache } from './club-slug.cache';
 
 /**
  * Anota qué club pide la request según el subdominio. Detrás del proxy de Next
@@ -20,26 +21,13 @@ import { resolveClubSlug } from './club-slug';
  * después de comprobar la membresía: si una ruta olvida el guard, RLS no
  * devuelve filas del club en vez de devolvérselas a cualquiera.
  */
-/** slug → id del club, o null si no existe. Corto: un club recién creado o borrado se nota pronto. */
-const CACHE_TTL_MS = 30_000;
-const NOT_FOUND_TTL_MS = 5_000;
-const CACHE_MAX = 5_000;
-
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
-  /**
-   * Evita una consulta a la BD en cada request, que además corre antes del
-   * rate limit. Un id viejo no abre nada: ClubMemberGuard igual exige membresía.
-   */
-  private readonly cache = new Map<
-    string,
-    { id: string | null; until: number }
-  >();
-
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly prisma: TenantPrisma,
     private readonly cls: ClsService,
+    private readonly slugs: ClubSlugCache,
   ) {}
 
   async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
@@ -58,21 +46,14 @@ export class TenantMiddleware implements NestMiddleware {
   }
 
   private async clubId(slug: string): Promise<string | null> {
-    const now = Date.now();
-    const cached = this.cache.get(slug);
-    if (cached && cached.until > now) return cached.id;
-
+    const cached = this.slugs.get(slug);
+    if (cached !== undefined) return cached;
     const club = await this.prisma.client.club.findUnique({
       where: { slug },
       select: { id: true },
     });
-    // Tope de tamaño: alguien que prueba slugs al azar no llena la memoria.
-    if (this.cache.size >= CACHE_MAX) this.cache.clear();
     const id = club?.id ?? null;
-    this.cache.set(slug, {
-      id,
-      until: now + (id ? CACHE_TTL_MS : NOT_FOUND_TTL_MS),
-    });
+    this.slugs.set(slug, id);
     return id;
   }
 }
