@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { LogMailer, MAILER, ResendMailer, type Mailer } from './mailer';
+import { TokenCleanup } from './token-cleanup';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { LogMailer, MAILER, ResendMailer, type Mailer } from './mailer';
     AuthGuard,
     AccountEmailsService,
     AccountService,
+    TokenCleanup,
     {
       provide: MAILER,
       inject: [ENV],

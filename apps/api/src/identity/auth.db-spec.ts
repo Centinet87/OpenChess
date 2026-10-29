@@ -207,6 +207,21 @@ describe('auth', () => {
     await post('refresh').set('Cookie', `${REFRESH_COOKIE}=${rt}`).expect(401);
   });
 
+  it('login: al sexto intento en un minuto responde 429, solo para ese email', async () => {
+    const target = `limite-${email}`;
+    for (let i = 0; i < 5; i++) {
+      await post('login')
+        .send({ email: target, password: wrongSecret })
+        .expect(401);
+    }
+    // Ni siquiera con la contraseña correcta: no se revisa.
+    await post('login').send({ email: target, password: secret }).expect(429);
+    // Otra cuenta desde la misma IP sigue pudiendo entrar.
+    await post('login')
+      .send({ email: `otra-${email}`, password: wrongSecret })
+      .expect(401);
+  });
+
   it('logout revoca la sesión', async () => {
     const res = await post('login')
       .send({ email, password: secret })
