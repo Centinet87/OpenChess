@@ -169,3 +169,53 @@ describe('RLS en el ranking', () => {
     expect(a.games).toBe(0);
   });
 });
+
+describe('RLS en cuentas vinculadas', () => {
+  const account = (
+    userId: string,
+    username: string,
+    verified: boolean,
+    platform: 'CHESSCOM' | 'LICHESS' = 'CHESSCOM',
+  ) => ({
+    id: randomUUID(),
+    userId,
+    platform,
+    username,
+    displayName: username,
+    verifiedAt: verified ? new Date() : null,
+  });
+
+  it('cada uno escribe solo sus cuentas, y ve las de los miembros de su club', async () => {
+    context = { userId: userA };
+    await db.linkedAccount.create({
+      data: account(userA, `a-${suffix}`, true),
+    });
+    await expect(
+      db.linkedAccount.create({ data: account(userB, `b-${suffix}`, true) }),
+    ).rejects.toThrow();
+
+    await base.linkedAccount.create({
+      data: account(userB, `b-${suffix}`, true),
+    });
+    // Desde el club A, B (que no es miembro) no se ve.
+    context = { clubId: clubA, userId: userA };
+    const seen = await db.linkedAccount.findMany();
+    expect(seen.map((a) => a.userId)).toEqual([userA]);
+  });
+
+  it('una cuenta verificada es de una sola persona; los intentos sin verificar no bloquean', async () => {
+    const name = `dup-${suffix}`;
+    await base.linkedAccount.create({
+      data: account(userA, name, false, 'LICHESS'),
+    });
+    await base.linkedAccount.create({
+      data: account(userB, name, true, 'LICHESS'),
+    });
+    await expect(
+      base.linkedAccount.update({
+        where: { userId_platform: { userId: userA, platform: 'LICHESS' } },
+        data: { username: name, verifiedAt: new Date() },
+      }),
+    ).rejects.toThrow();
+  });
+});

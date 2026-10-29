@@ -22,6 +22,12 @@ const envSchema = z
      * con Vercel → Fly son 2; si es 1, todos los usuarios comparten la IP de Vercel.
      */
     TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(1),
+    /** URL pública del front. Lichess vuelve aquí después de iniciar sesión (OAuth). */
+    PUBLIC_URL: z.url().default('http://localhost:3000'),
+    /** Lo muestra Lichess al pedir permiso. No hace falta registrarlo. */
+    LICHESS_CLIENT_ID: z.string().min(1).default('openchess'),
+    LICHESS_URL: z.url().default('https://lichess.org'),
+    CHESSCOM_API_URL: z.url().default('https://api.chess.com'),
   })
   // Sin dominio compartido la sesión no viaja a los subdominios, y fallaría sin avisar.
   .refine((env) => env.NODE_ENV !== 'production' || !!env.COOKIE_DOMAIN, {

@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 import { Glicko2System, RatingsUseCases } from '@openchess/ratings';
 import { GamesModule } from '../games/games.module';
 import { IdentityModule } from '../identity/identity.module';
+import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
 import { PrismaRatingsRepository } from './prisma-ratings.repository';
 import { RatingsController } from './ratings.controller';
 import { RatingsListener } from './ratings.listener';
 
-/** Ranking Glicko-2 por club. Se entera de las partidas por el evento GameFinished. */
+/** Ranking Glicko-2 por club. Se entera de las partidas por eventos: las del club y las importadas. */
 @Module({
-  imports: [IdentityModule, GamesModule],
+  imports: [IdentityModule, GamesModule, LinkedAccountsModule],
   controllers: [RatingsController],
   providers: [
     PrismaRatingsRepository,

@@ -20,6 +20,9 @@
     },
     {
       "path": "./libs/ratings"
+    },
+    {
+      "path": "./libs/linked-accounts"
     }
   ],
   "compilerOptions": {}

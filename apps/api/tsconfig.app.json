@@ -27,6 +27,9 @@
       "path": "../../libs/ratings/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/linked-accounts/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/games/tsconfig.lib.json"
     },
     {

@@ -93,6 +93,13 @@ Se usan donde el problema los pide, no como meta:
 - Tabla de posiciones (`GET /club/ratings`) y perfil de cada jugador con su historial (`GET /club/ratings/:userId`). El PGN de cada partida sale de `GET /club/games/:id`.
 - Visor de partidas para revisarlas jugada a jugada.
 
+### Lichess y Chess.com — hecho en el backend; faltan las pantallas
+
+- Cada usuario vincula su cuenta de Lichess (OAuth con PKCE) o de Chess.com (código en el perfil). Una cuenta verificada es de una sola persona.
+- El perfil del club muestra los ratings online de cada miembro.
+- Un miembro trae al club sus partidas de los últimos 30 días. Las de ajedrez estándar entre dos miembros con cuentas verificadas cuentan para el ranking del club.
+- `GET/POST/DELETE /accounts/...` en el dominio raíz; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
+
 ### Fase 4: Lanzamiento (media)
 
 - Página pública, términos de uso y política de privacidad.
