@@ -29,6 +29,24 @@ function toRole(row: RoleRow): ClubRole {
   return { ...row, permissions: row.permissions as Permission[] };
 }
 
+/**
+ * El trigger memberships_keep_owner (migración club_owner_guard) frena la
+ * carrera que el dominio no ve: dos dueños que se bajan o se van a la vez.
+ */
+export function isLastOwnerError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('LAST_OWNER');
+}
+
+function lastOwner(error: unknown): never {
+  if (isLastOwnerError(error)) {
+    throw new ClubError(
+      'LAST_OWNER',
+      'El club tiene que tener al menos un dueño',
+    );
+  }
+  throw error;
+}
+
 const ROLE_SUMMARY = {
   id: true,
   name: true,
@@ -132,16 +150,18 @@ export class PrismaClubsRepository
     userId: string,
     roleId: string,
   ): Promise<void> {
-    await this.db.membership.update({
-      where: { clubId_userId: { clubId, userId } },
-      data: { roleId },
-    });
+    await this.db.membership
+      .update({
+        where: { clubId_userId: { clubId, userId } },
+        data: { roleId },
+      })
+      .catch(lastOwner);
   }
 
   async removeMember(clubId: string, userId: string): Promise<void> {
-    await this.db.membership.delete({
-      where: { clubId_userId: { clubId, userId } },
-    });
+    await this.db.membership
+      .delete({ where: { clubId_userId: { clubId, userId } } })
+      .catch(lastOwner);
   }
 
   async roles(clubId: string): Promise<ClubRole[]> {

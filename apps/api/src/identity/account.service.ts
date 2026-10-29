@@ -11,6 +11,7 @@ import {
   tenantTransaction,
   withTenantContext,
 } from '@openchess/database';
+import { isLastOwnerError } from '../clubs/prisma-clubs.repository';
 import { BASE_PRISMA } from '../infrastructure/prisma.module';
 import { verifyPassword } from './crypto';
 
@@ -319,38 +320,20 @@ export class AccountService {
     }
 
     for (const m of memberships) {
-      const context = { userId, clubId: m.clubId };
-      if (clubsToDelete.includes(m.clubId)) {
-        // clubs no tiene RLS; el resto del club se va en cascada.
-        await tenantTransaction(this.base, context, (tx) => [
-          tx.club.delete({ where: { id: m.clubId } }),
-        ]);
-        continue;
-      }
-      await tenantTransaction(this.base, context, (tx) => [
-        // Los desafíos sin jugar no le sirven a nadie.
-        tx.game.deleteMany({
-          where: {
-            clubId: m.clubId,
-            status: 'PENDING',
-            OR: [{ whiteId: userId }, { blackId: userId }],
-          },
-        }),
-        tx.rating.deleteMany({ where: { clubId: m.clubId, userId } }),
-        tx.ratingChange.deleteMany({ where: { clubId: m.clubId, userId } }),
-        tx.fideLink.deleteMany({ where: { clubId: m.clubId, userId } }),
-        tx.importedGame.updateMany({
-          where: { clubId: m.clubId, whiteUserId: userId },
-          data: { whiteUserId: null },
-        }),
-        tx.importedGame.updateMany({
-          where: { clubId: m.clubId, blackUserId: userId },
-          data: { blackUserId: null },
-        }),
-        tx.membership.delete({
-          where: { clubId_userId: { clubId: m.clubId, userId } },
-        }),
-      ]);
+      await this.leave(
+        userId,
+        m.clubId,
+        clubsToDelete.includes(m.clubId),
+      ).catch((error: unknown) => {
+        // Otro dueño se fue al mismo tiempo (ver memberships_keep_owner).
+        if (!isLastOwnerError(error)) throw error;
+        throw new ConflictException({
+          code: 'LAST_OWNER',
+          message:
+            'Eres el único dueño de algunos clubes: nombra a otro dueño antes de eliminar la cuenta',
+          clubs: [m.club],
+        });
+      });
     }
 
     await tenantTransaction(this.base, { userId }, (tx) => [
@@ -368,6 +351,44 @@ export class AccountService {
           emailVerifiedAt: null,
         },
       }),
+    ]);
+  }
+
+  /** Saca a la persona de un club con sus datos; si estaba sola, borra el club. */
+  private async leave(
+    userId: string,
+    clubId: string,
+    deleteClub: boolean,
+  ): Promise<void> {
+    const context = { userId, clubId };
+    if (deleteClub) {
+      // clubs no tiene RLS; el resto del club se va en cascada.
+      await tenantTransaction(this.base, context, (tx) => [
+        tx.club.delete({ where: { id: clubId } }),
+      ]);
+      return;
+    }
+    await tenantTransaction(this.base, context, (tx) => [
+      // Los desafíos sin jugar no le sirven a nadie.
+      tx.game.deleteMany({
+        where: {
+          clubId,
+          status: 'PENDING',
+          OR: [{ whiteId: userId }, { blackId: userId }],
+        },
+      }),
+      tx.rating.deleteMany({ where: { clubId, userId } }),
+      tx.ratingChange.deleteMany({ where: { clubId, userId } }),
+      tx.fideLink.deleteMany({ where: { clubId, userId } }),
+      tx.importedGame.updateMany({
+        where: { clubId, whiteUserId: userId },
+        data: { whiteUserId: null },
+      }),
+      tx.importedGame.updateMany({
+        where: { clubId, blackUserId: userId },
+        data: { blackUserId: null },
+      }),
+      tx.membership.delete({ where: { clubId_userId: { clubId, userId } } }),
     ]);
   }
 

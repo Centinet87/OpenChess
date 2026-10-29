@@ -132,21 +132,17 @@ Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de
 
 ## Pendientes del QA (2026-10-29)
 
-| Sev.  | Pendiente                                                                                                                                       |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Medio | Carrera en `changeRole`/`removeMember`: dos OWNER que se bajan a la vez dejan el club sin dueño. Necesita transacción con `SELECT … FOR UPDATE` |
-| Medio | Dos pestañas que refrescan a la vez cierran la sesión. Agregar unos segundos de gracia al token recién rotado                                   |
-| Medio | `withTenantContext` hace 3 sentencias por consulta. Fijar el contexto una vez por transacción cuando haya transacciones por request             |
-| Bajo  | Mapear P2002 a `ALREADY_MEMBER` al aceptar una invitación                                                                                       |
-| Bajo  | Job que borre refresh tokens vencidos                                                                                                           |
-| Bajo  | Tests del rate limit, de `X-Forwarded-Host` y de las carreras                                                                                   |
+| Sev.  | Pendiente                                                                                                                           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Medio | `withTenantContext` hace 3 sentencias por consulta. Fijar el contexto una vez por transacción cuando haya transacciones por request |
+| Bajo  | Mapear P2002 a `ALREADY_MEMBER` al aceptar una invitación                                                                           |
+| Bajo  | Job que borre refresh tokens vencidos                                                                                               |
+| Bajo  | Tests del rate limit, de `X-Forwarded-Host` y de las carreras                                                                       |
 
 ## Pendientes de la Fase 2
 
 | Sev.  | Pendiente                                                                                                                                                                                                           |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Medio | Los timers del reloj viven en memoria: con varias instancias de la API hay que pasarlos a una cola (BullMQ + Redis). Si el proceso se reinicia, la partida igual se cierra en la próxima jugada o al unirse alguien |
-| Medio | Si las blancas nunca hacen la primera jugada, la partida queda abierta. Abortarla sola a los 30 s                                                                                                                   |
-| Medio | El WebSocket no tiene rate limit por mensaje                                                                                                                                                                        |
 | Bajo  | Los miembros del club pueden unirse como espectadores; falta decidir si se ocultan las ofertas de tablas                                                                                                            |
 | Bajo  | El front: tablero con chessground, reloj local corregido con `serverNow` y reconexión                                                                                                                               |
