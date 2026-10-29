@@ -25,12 +25,18 @@ describe('resolveClubSlug', () => {
 });
 
 describe('clubOrigin', () => {
-  it('pone el slug delante del dominio y conserva el esquema y el puerto', () => {
-    expect(clubOrigin('https://openchess.app', 'miclub')).toBe(
+  it('pone el slug delante de APP_DOMAIN y conserva el esquema y el puerto', () => {
+    expect(clubOrigin('https://openchess.app', 'openchess.app', 'miclub')).toBe(
       'https://miclub.openchess.app',
     );
-    expect(clubOrigin('http://localhost:3000/', 'sur')).toBe(
+    expect(clubOrigin('http://localhost:3000/', 'localhost', 'sur')).toBe(
       'http://sur.localhost:3000',
     );
+  });
+
+  it('no arrastra el www del sitio público', () => {
+    expect(
+      clubOrigin('https://www.openchess.app', 'openchess.app', 'miclub'),
+    ).toBe('https://miclub.openchess.app');
   });
 });

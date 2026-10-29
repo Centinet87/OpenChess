@@ -59,7 +59,7 @@ export class PlanController {
       { isOwner: this.cls.get('role').isOwner },
       this.cls.get('clubId'),
       email,
-      `${clubOrigin(this.env.PUBLIC_URL, this.cls.get('clubSlug'))}/plan`,
+      `${clubOrigin(this.env.PUBLIC_URL, this.env.APP_DOMAIN, this.cls.get('clubSlug'))}/plan`,
     );
   }
 

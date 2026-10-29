@@ -20,11 +20,16 @@ export function resolveClubSlug(
 }
 
 /**
- * Origen del sitio de un club, a partir de la URL pública del front:
- * ("https://openchess.app", "miclub") → "https://miclub.openchess.app".
+ * Origen del sitio de un club: el esquema y el puerto de la URL pública del
+ * front, con el subdominio del club sobre APP_DOMAIN.
+ * ("https://www.openchess.app", "openchess.app", "miclub") → "https://miclub.openchess.app".
  */
-export function clubOrigin(publicUrl: string, slug: string): string {
+export function clubOrigin(
+  publicUrl: string,
+  appDomain: string,
+  slug: string,
+): string {
   const url = new URL(publicUrl);
-  url.hostname = `${slug}.${url.hostname}`;
+  url.hostname = `${slug}.${appDomain}`;
   return url.origin;
 }
