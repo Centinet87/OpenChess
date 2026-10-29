@@ -104,7 +104,13 @@ export class PrismaGamesRepository
 
   async find(gameId: string): Promise<StoredGame | null> {
     const row = await this.db.game.findUnique({ where: { id: gameId } });
-    return row ? { snapshot: toSnapshot(row), version: row.version } : null;
+    return row
+      ? {
+          snapshot: toSnapshot(row),
+          version: row.version,
+          createdAt: row.createdAt.getTime(),
+        }
+      : null;
   }
 
   async update(s: GameSnapshot, expectedVersion: number): Promise<boolean> {
@@ -119,13 +125,37 @@ export class PrismaGamesRepository
     clubId: string,
     statuses: readonly GameStatus[],
     limit: number,
+    pendingSince: number,
   ): Promise<GameSnapshot[]> {
     const rows = await this.db.game.findMany({
-      where: { clubId, status: { in: statuses.map((s) => TO_DB[s]) } },
+      where: {
+        clubId,
+        status: { in: statuses.map((s) => TO_DB[s]) },
+        // Los desafíos vencidos no se muestran.
+        NOT: {
+          status: 'PENDING',
+          createdAt: { lt: new Date(pendingSince) },
+        },
+      },
       orderBy: { updatedAt: 'desc' },
       take: limit,
     });
     return rows.map(toSnapshot);
+  }
+
+  countPending(
+    clubId: string,
+    challengerId: string,
+    since: number,
+  ): Promise<number> {
+    return this.db.game.count({
+      where: {
+        clubId,
+        challengerId,
+        status: 'PENDING',
+        createdAt: { gte: new Date(since) },
+      },
+    });
   }
 
   /** Miembro del club cuyo rol puede jugar (permiso PLAY_GAMES). */

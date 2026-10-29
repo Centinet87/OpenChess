@@ -4,6 +4,8 @@ export interface StoredGame {
   readonly snapshot: GameSnapshot;
   /** Para control de concurrencia optimista. */
   readonly version: number;
+  /** Cuándo se creó (el desafío), en ms. */
+  readonly createdAt: number;
 }
 
 /** Lo implementa la infraestructura. Solo ve las partidas del club del contexto. */
@@ -12,11 +14,19 @@ export interface GamesRepository {
   find(gameId: string): Promise<StoredGame | null>;
   /** Guarda si nadie la cambió desde `expectedVersion`. Devuelve false si hubo conflicto. */
   update(snapshot: GameSnapshot, expectedVersion: number): Promise<boolean>;
+  /** Los desafíos pendientes creados antes de `pendingSince` (vencidos) no se listan. */
   list(
     clubId: string,
     statuses: readonly GameStatus[],
     limit: number,
+    pendingSince: number,
   ): Promise<GameSnapshot[]>;
+  /** Desafíos pendientes de esa persona creados desde `since`. */
+  countPending(
+    clubId: string,
+    challengerId: string,
+    since: number,
+  ): Promise<number>;
 }
 
 export interface MembershipChecker {

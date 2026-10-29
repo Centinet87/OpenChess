@@ -12,7 +12,9 @@ export type GameErrorCode =
   | 'ILLEGAL_MOVE'
   | 'GAME_OVER'
   | 'CANNOT_ABORT'
-  | 'NO_DRAW_OFFER';
+  | 'NO_DRAW_OFFER'
+  | 'CHALLENGE_EXPIRED'
+  | 'TOO_MANY_CHALLENGES';
 
 /** Regla de la partida rota. La API la traduce a un error para el cliente. */
 export class GameError extends Error {

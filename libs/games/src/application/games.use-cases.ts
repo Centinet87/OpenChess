@@ -14,6 +14,10 @@ export type ColorChoice = 'white' | 'black' | 'random';
 /** Si dos comandos chocan (una jugada y el vencimiento del reloj), se reintenta con la versión nueva. */
 const MAX_ATTEMPTS = 3;
 const LIST_LIMIT = 50;
+/** Un desafío que nadie acepta vence al día. */
+export const CHALLENGE_TTL_MS = 24 * 60 * 60 * 1000;
+/** Desafíos abiertos a la vez por persona: frena el spam de desafíos. */
+export const MAX_OPEN_CHALLENGES = 5;
 
 export class GamesUseCases {
   constructor(private readonly deps: GamesDeps) {}
@@ -24,6 +28,17 @@ export class GamesUseCases {
     input: { opponentId: string; timeControl: string; color: ColorChoice },
   ): Promise<GameSnapshot> {
     const control = parseTimeControl(input.timeControl);
+    const open = await this.deps.games.countPending(
+      clubId,
+      challengerId,
+      this.deps.now() - CHALLENGE_TTL_MS,
+    );
+    if (open >= MAX_OPEN_CHALLENGES) {
+      throw new GameError(
+        'TOO_MANY_CHALLENGES',
+        `Tienes ${open} desafíos sin responder: espera a que los acepten o vuelve mañana`,
+      );
+    }
     if (!(await this.deps.members.isMember(clubId, input.opponentId))) {
       throw new GameError(
         'OPPONENT_NOT_MEMBER',
@@ -55,10 +70,22 @@ export class GamesUseCases {
     clubId: string,
     statuses: readonly GameStatus[],
   ): Promise<GameSnapshot[]> {
-    return this.deps.games.list(clubId, statuses, LIST_LIMIT);
+    return this.deps.games.list(
+      clubId,
+      statuses,
+      LIST_LIMIT,
+      this.deps.now() - CHALLENGE_TTL_MS,
+    );
   }
 
-  accept(gameId: string, userId: string): Promise<GameSnapshot> {
+  async accept(gameId: string, userId: string): Promise<GameSnapshot> {
+    const stored = await this.load(gameId);
+    if (
+      stored.snapshot.status === 'pending' &&
+      stored.createdAt < this.deps.now() - CHALLENGE_TTL_MS
+    ) {
+      throw new GameError('CHALLENGE_EXPIRED', 'Este desafío ya venció');
+    }
     return this.run(gameId, (g) => g.accept(userId));
   }
 

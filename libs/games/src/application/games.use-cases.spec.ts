@@ -1,6 +1,10 @@
 import { GameError } from '../domain/errors.js';
 import type { GameEvent, GameSnapshot, GameStatus } from '../domain/game.js';
-import { GamesUseCases } from './games.use-cases.js';
+import {
+  CHALLENGE_TTL_MS,
+  GamesUseCases,
+  MAX_OPEN_CHALLENGES,
+} from './games.use-cases.js';
 import type { GamesRepository, StoredGame } from './ports.js';
 
 class MemoryGames implements GamesRepository {
@@ -8,8 +12,11 @@ class MemoryGames implements GamesRepository {
   /** Simula que otra request guardó justo antes, las primeras N veces. */
   conflictsLeft = 0;
 
+  /** Reloj de los desafíos: lo fija el test. */
+  clock = 0;
+
   async insert(snapshot: GameSnapshot) {
-    this.rows.set(snapshot.id, { snapshot, version: 0 });
+    this.rows.set(snapshot.id, { snapshot, version: 0, createdAt: this.clock });
   }
   async find(id: string) {
     return this.rows.get(id) ?? null;
@@ -23,13 +30,34 @@ class MemoryGames implements GamesRepository {
       return false;
     }
     if (!row || row.version !== expectedVersion) return false;
-    this.rows.set(snapshot.id, { snapshot, version: expectedVersion + 1 });
+    this.rows.set(snapshot.id, {
+      ...row,
+      snapshot,
+      version: expectedVersion + 1,
+    });
     return true;
   }
-  async list(clubId: string, statuses: readonly GameStatus[]) {
+  async list(
+    clubId: string,
+    statuses: readonly GameStatus[],
+    _limit: number,
+    pendingSince: number,
+  ) {
     return [...this.rows.values()]
+      .filter(
+        (r) => r.snapshot.status !== 'pending' || r.createdAt >= pendingSince,
+      )
       .map((r) => r.snapshot)
       .filter((s) => s.clubId === clubId && statuses.includes(s.status));
+  }
+  async countPending(clubId: string, challengerId: string, since: number) {
+    return [...this.rows.values()].filter(
+      (r) =>
+        r.snapshot.clubId === clubId &&
+        r.snapshot.challengerId === challengerId &&
+        r.snapshot.status === 'pending' &&
+        r.createdAt >= since,
+    ).length;
   }
 }
 
@@ -45,7 +73,13 @@ function setup() {
     now: () => (now += 1000),
     random: () => 0.9,
   });
-  return { useCases, games, published };
+  return {
+    useCases,
+    games,
+    published,
+    /** Avanza el reloj y fecha ahí los desafíos nuevos. */
+    advance: (ms: number) => (games.clock = now += ms),
+  };
 }
 
 async function code(p: Promise<unknown>): Promise<string | undefined> {
@@ -131,5 +165,35 @@ describe('GamesUseCases', () => {
   it('una partida inexistente da GAME_NOT_FOUND', async () => {
     const { useCases } = setup();
     expect(await code(useCases.get('nada'))).toBe('GAME_NOT_FOUND');
+  });
+
+  it('un desafío que nadie acepta vence al día y deja de listarse', async () => {
+    const { useCases, advance } = setup();
+    const game = await useCases.challenge('club', 'w', {
+      opponentId: 'b',
+      timeControl: '5+0',
+      color: 'white',
+    });
+    expect(await useCases.list('club', ['pending'])).toHaveLength(1);
+
+    advance(CHALLENGE_TTL_MS + 1);
+    expect(await useCases.list('club', ['pending'])).toEqual([]);
+    expect(await code(useCases.accept(game.id, 'b'))).toBe('CHALLENGE_EXPIRED');
+  });
+
+  it('no se pueden tener más de 5 desafíos abiertos a la vez', async () => {
+    const { useCases, advance } = setup();
+    const challenge = () =>
+      useCases.challenge('club', 'w', {
+        opponentId: 'b',
+        timeControl: '5+0',
+        color: 'white',
+      });
+    for (let i = 0; i < MAX_OPEN_CHALLENGES; i++) await challenge();
+    expect(await code(challenge())).toBe('TOO_MANY_CHALLENGES');
+
+    // Los vencidos ya no cuentan.
+    advance(CHALLENGE_TTL_MS + 1);
+    expect(await code(challenge())).toBeUndefined();
   });
 });

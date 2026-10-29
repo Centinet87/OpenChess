@@ -22,6 +22,8 @@ export const GAME_ERROR_STATUS: Record<GameErrorCode, HttpStatus> = {
   GAME_OVER: HttpStatus.CONFLICT,
   CANNOT_ABORT: HttpStatus.CONFLICT,
   NO_DRAW_OFFER: HttpStatus.CONFLICT,
+  CHALLENGE_EXPIRED: HttpStatus.GONE,
+  TOO_MANY_CHALLENGES: HttpStatus.TOO_MANY_REQUESTS,
 };
 
 @Catch(GameError)

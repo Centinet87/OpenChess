@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { config } from 'dotenv';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
@@ -10,7 +11,7 @@ import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import { ACCESS_COOKIE } from '../identity/cookies';
-import type { Ack } from './games.gateway';
+import { MESSAGE_LIMIT, type Ack } from './games.gateway';
 import type { GameView } from './game-view';
 
 config({ path: '../../.env', quiet: true });
@@ -275,4 +276,53 @@ describe('partidas', () => {
       termination: 'timeout',
     });
   }, 15_000);
+
+  it('una sesión vencida corta el socket', async () => {
+    const short = await app
+      .get(JwtService)
+      .signAsync({ sub: users.ana.id }, { expiresIn: '1s' });
+    const socket = connect(`${ACCESS_COOKIE}=${short}`);
+    await connected(socket);
+    const closed = new Promise<string>((resolve) =>
+      socket.once('disconnect', (reason) => resolve(reason)),
+    );
+    expect(await closed).toBe('io server disconnect');
+  }, 5_000);
+
+  it('más de 30 mensajes en 10 segundos se rechazan', async () => {
+    const ana = connect(users.ana.cookie);
+    await connected(ana);
+    const acks = [];
+    for (let i = 0; i < MESSAGE_LIMIT + 1; i++) {
+      acks.push(await emit(ana, 'game:command', { gameId: 'x' }));
+    }
+    expect(acks[0]).toMatchObject({ code: 'BAD_REQUEST' });
+    expect(acks[MESSAGE_LIMIT]).toMatchObject({ code: 'RATE_LIMITED' });
+  });
+
+  // Al final: saca a beto del club.
+  it('a quien sacan del club no le sirve el socket que tenía abierto', async () => {
+    const game = await challenge('5+0');
+    const ana = connect(users.ana.cookie);
+    const beto = connect(users.beto.cookie);
+    await Promise.all([connected(ana), connected(beto)]);
+    await emit(ana, 'game:join', { club: slugA, gameId: game.id });
+    await emit(beto, 'game:join', { club: slugA, gameId: game.id });
+    await emit(ana, 'game:command', {
+      gameId: game.id,
+      action: 'move',
+      from: 'e2',
+      to: 'e4',
+    });
+
+    await base.membership.deleteMany({ where: { userId: users.beto.id } });
+    expect(
+      await emit(beto, 'game:command', {
+        gameId: game.id,
+        action: 'move',
+        from: 'e7',
+        to: 'e5',
+      }),
+    ).toMatchObject({ ok: false, code: 'GAME_NOT_FOUND' });
+  });
 });
