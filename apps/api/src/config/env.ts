@@ -29,11 +29,19 @@ const envSchema = z
     LICHESS_URL: z.url().default('https://lichess.org'),
     CHESSCOM_API_URL: z.url().default('https://api.chess.com'),
     FIDE_URL: z.url().default('https://ratings.fide.com'),
+    /** Sin clave (desarrollo) los emails van al log de la API. */
+    RESEND_API_KEY: z.string().min(1).optional(),
+    /** Remitente; el dominio tiene que estar verificado en Resend. */
+    EMAIL_FROM: z.string().min(3).default('OpenChess <no-reply@openchess.app>'),
   })
   // Sin dominio compartido la sesión no viaja a los subdominios, y fallaría sin avisar.
   .refine((env) => env.NODE_ENV !== 'production' || !!env.COOKIE_DOMAIN, {
     message: 'COOKIE_DOMAIN es obligatorio en producción',
     path: ['COOKIE_DOMAIN'],
+  })
+  .refine((env) => env.NODE_ENV !== 'production' || !!env.RESEND_API_KEY, {
+    message: 'RESEND_API_KEY es obligatorio en producción',
+    path: ['RESEND_API_KEY'],
   })
   .refine(
     (env) =>

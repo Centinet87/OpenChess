@@ -17,11 +17,18 @@ import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AuthGuard } from './auth.guard';
+import { AccountEmailsService } from './account-emails.service';
 import {
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
+  tokenSchema,
+  type ForgotPasswordInput,
   type LoginInput,
   type RegisterInput,
+  type ResetPasswordInput,
+  type TokenInput,
 } from './auth.schemas';
 import { AuthService, type Profile } from './auth.service';
 import {
@@ -43,6 +50,7 @@ function refreshCookie(req: Request): string | undefined {
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly emails: AccountEmailsService,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -53,8 +61,48 @@ export class AuthController {
     @Body(new ZodPipe(registerSchema)) body: RegisterInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    setSessionCookies(res, await this.auth.register(body), this.env);
+    const { session, userId } = await this.auth.register(body);
+    setSessionCookies(res, session, this.env);
+    this.emails.queueVerification(userId);
     return { ok: true };
+  }
+
+  /** El link del email de verificación lleva aquí (desde la página /verificar del front). */
+  @Post('verify-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async verifyEmail(
+    @Body(new ZodPipe(tokenSchema)) body: TokenInput,
+  ): Promise<void> {
+    await this.emails.verifyEmail(body.token);
+  }
+
+  @Post('verification-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  resendVerification(): void {
+    this.emails.queueVerification(this.cls.get('userId'));
+  }
+
+  /** Responde 204 exista o no la cuenta. */
+  @Post('forgot-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  forgotPassword(
+    @Body(new ZodPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+  ): void {
+    this.emails.requestPasswordReset(body.email);
+  }
+
+  /** Cambia la contraseña con el link del email y cierra todas las sesiones. */
+  @Post('reset-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async resetPassword(
+    @Body(new ZodPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ): Promise<void> {
+    await this.emails.resetPassword(body.token, body.password);
   }
 
   @Post('login')

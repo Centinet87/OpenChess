@@ -33,18 +33,23 @@ describe('loadEnv', () => {
         NODE_ENV: 'production',
         COOKIE_DOMAIN: '.openchess.app',
         PUBLIC_URL: 'https://openchess.app',
+        RESEND_API_KEY: 're_123',
       }).COOKIE_DOMAIN,
     ).toBe('.openchess.app');
   });
 
-  it('en producción exige PUBLIC_URL con https', () => {
+  it('en producción exige PUBLIC_URL con https y la clave de Resend', () => {
+    const prod = {
+      ...base,
+      NODE_ENV: 'production',
+      COOKIE_DOMAIN: '.openchess.app',
+    };
+    expect(() => loadEnv({ ...prod, RESEND_API_KEY: 're_1' })).toThrow(
+      'PUBLIC_URL',
+    );
     expect(() =>
-      loadEnv({
-        ...base,
-        NODE_ENV: 'production',
-        COOKIE_DOMAIN: '.openchess.app',
-      }),
-    ).toThrow('PUBLIC_URL');
+      loadEnv({ ...prod, PUBLIC_URL: 'https://openchess.app' }),
+    ).toThrow('RESEND_API_KEY');
   });
 
   it('las cookies van con Secure en producción o si el sitio es https, aunque falte NODE_ENV', () => {

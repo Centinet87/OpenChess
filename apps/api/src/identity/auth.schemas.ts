@@ -9,7 +9,7 @@ const email = z
   .pipe(z.email({ message: 'Email inválido' }));
 
 // Máximo de 128 para que nadie mande megas a argon2.
-const password = z.string().min(10, 'Mínimo 10 caracteres').max(128);
+export const password = z.string().min(10, 'Mínimo 10 caracteres').max(128);
 
 export const registerSchema = z.object({
   email,
@@ -24,3 +24,13 @@ export const loginSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+
+const token = z.string().min(10).max(200);
+
+export const tokenSchema = z.object({ token });
+export const forgotPasswordSchema = z.object({ email });
+export const resetPasswordSchema = z.object({ token, password });
+
+export type TokenInput = z.infer<typeof tokenSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

@@ -26,6 +26,7 @@ export interface Profile {
   id: string;
   email: string;
   displayName: string;
+  emailVerified: boolean;
 }
 
 export interface AccessTokenPayload {
@@ -47,7 +48,9 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  async register(input: RegisterInput): Promise<Session> {
+  async register(
+    input: RegisterInput,
+  ): Promise<{ session: Session; userId: string }> {
     const existing = await this.prisma.client.user.findUnique({
       where: { email: input.email },
       select: { id: true },
@@ -70,7 +73,10 @@ export class AuthService {
           throw new ConflictException(EMAIL_TAKEN);
         throw error;
       });
-    return this.issueSession(user.id, randomUUID());
+    return {
+      session: await this.issueSession(user.id, randomUUID()),
+      userId: user.id,
+    };
   }
 
   async login(input: LoginInput): Promise<Session> {
@@ -133,10 +139,16 @@ export class AuthService {
   async profile(userId: string): Promise<Profile> {
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, displayName: true },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        emailVerifiedAt: true,
+      },
     });
     if (!user) throw new NotFoundException();
-    return user;
+    const { emailVerifiedAt, ...rest } = user;
+    return { ...rest, emailVerified: emailVerifiedAt !== null };
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {

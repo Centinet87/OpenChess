@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
+import { AccountEmailsService } from './account-emails.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { LogMailer, MAILER, ResendMailer, type Mailer } from './mailer';
 
 @Module({
   imports: [
@@ -18,7 +20,19 @@ import { AuthService } from './auth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard],
+  providers: [
+    AuthService,
+    AuthGuard,
+    AccountEmailsService,
+    {
+      provide: MAILER,
+      inject: [ENV],
+      useFactory: (env: Env): Mailer =>
+        env.RESEND_API_KEY
+          ? new ResendMailer(env.RESEND_API_KEY, env.EMAIL_FROM)
+          : new LogMailer(),
+    },
+  ],
   exports: [AuthService, AuthGuard],
 })
 export class IdentityModule {}

@@ -26,12 +26,13 @@ model User {
   memberships        Membership[]
   refreshTokens      RefreshToken[]
   invitationsCreated Invitation[]
-  gamesAsWhite       Game[]         @relation("white")
-  gamesAsBlack       Game[]         @relation("black")
+  gamesAsWhite       Game[]          @relation("white")
+  gamesAsBlack       Game[]          @relation("black")
   ratings            Rating[]
-  ratingChanges      RatingChange[] @relation("player")
-  rivalRatingChanges RatingChange[] @relation("opponent")
+  ratingChanges      RatingChange[]  @relation("player")
+  rivalRatingChanges RatingChange[]  @relation("opponent")
   linkedAccounts     LinkedAccount[]
+  emailTokens        EmailToken[]
 
   @@map("users")
 }
@@ -67,7 +68,7 @@ model ClubRole {
   position    Int
   /// Rol dueño: todos los permisos, no se borra y el club siempre tiene alguien con él.
   isOwner     Boolean  @default(false) @map("is_owner")
-  permissions String[]
+  permissions String[] @default([])
   createdAt   DateTime @default(now()) @map("created_at")
 
   club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -120,13 +121,13 @@ model Invitation {
 /// Refresh token rotativo. family_id agrupa la cadena de rotaciones:
 /// si se reusa un token ya rotado, se revoca la familia entera.
 model RefreshToken {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  tokenHash  String    @unique @map("token_hash")
-  familyId   String    @map("family_id") @db.Uuid
-  expiresAt  DateTime  @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -282,21 +283,45 @@ model ImportedGame {
 /// FIDE ID de un miembro, agregado por un admin del club. FIDE no tiene login,
 /// así que la confianza es la del club: vale solo dentro de este club.
 model FideLink {
-  clubId           String    @map("club_id") @db.Uuid
-  userId           String    @map("user_id") @db.Uuid
-  fideId           String    @map("fide_id")
+  clubId           String   @map("club_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  fideId           String   @map("fide_id")
   name             String
   federation       String?
   title            String?
   /// standard, rapid, blitz
-  ratings          Json      @default("{}")
-  ratingsUpdatedAt DateTime  @map("ratings_updated_at")
-  linkedBy         String    @map("linked_by") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at")
+  ratings          Json     @default("{}")
+  ratingsUpdatedAt DateTime @map("ratings_updated_at")
+  linkedBy         String   @map("linked_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   @@id([clubId, userId])
   @@unique([clubId, fideId])
   @@map("fide_links")
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+
+  @@map("email_token_purpose")
+}
+
+/// Link de un solo uso que se manda por email (verificar la cuenta, recuperar la
+/// contraseña). Se guarda el SHA-256 del token, nunca el token.
+model EmailToken {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique @map("token_hash")
+  expiresAt DateTime          @map("expires_at")
+  usedAt    DateTime?         @map("used_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
 }
