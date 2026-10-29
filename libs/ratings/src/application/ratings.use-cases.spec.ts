@@ -127,4 +127,26 @@ describe('RatingsUseCases', () => {
   it('no hay perfil de quien no es miembro del club', async () => {
     expect(await ratings.profile('club', 'nadie')).toBeNull();
   });
+
+  it('quien tiene Elo FIDE y no ha jugado en el club parte con ese rating', async () => {
+    const seeded = new RatingsUseCases(repo, new Glicko2System(), {
+      find: async (_clubId, userIds) =>
+        new Map(userIds.filter((id) => id === 'ana').map((id) => [id, 2100])),
+    });
+    const before = await seeded.profile('club', 'ana');
+    expect(before?.rating.rating).toMatchObject({
+      rating: 2100,
+      deviation: 150,
+    });
+
+    // Ana (2100) le gana a Beto (1500 sin Elo): sube poco, porque se esperaba.
+    await seeded.recordGame(finished('g1', '1-0'));
+    const [ana] = await seeded.standings('club');
+    expect(ana.rating.rating).toBeGreaterThan(2100);
+    expect(ana.rating.rating).toBeLessThan(2110);
+
+    // Ya jugó: el Elo FIDE no vuelve a usarse.
+    const after = await seeded.profile('club', 'ana');
+    expect(after?.rating.games).toBe(1);
+  });
 });

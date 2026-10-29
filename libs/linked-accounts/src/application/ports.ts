@@ -2,6 +2,7 @@ import type {
   ExternalGame,
   ImportedGameSnapshot,
 } from '../domain/external-game.js';
+import type { FideLinkSnapshot, FideProfile } from '../domain/fide.js';
 import type { LinkedAccountSnapshot } from '../domain/linked-account.js';
 import type { OnlineRatings, Platform } from '../domain/platform.js';
 
@@ -77,5 +78,27 @@ export interface LinkedAccountsDeps {
   readonly newId: () => string;
   /** Código corto y difícil de adivinar para el perfil de Chess.com. */
   readonly newCode: () => string;
+  readonly now: () => Date;
+}
+
+/** La ficha pública de FIDE. Lanza LinkError PLATFORM_UNAVAILABLE si no responde. */
+export interface FideDirectory {
+  /** null si no existe ese FIDE ID. */
+  profile(fideId: string): Promise<FideProfile | null>;
+}
+
+/** FIDE ID de los miembros. Solo ve los del club del contexto. */
+export interface FideLinksRepository {
+  find(clubId: string, userId: string): Promise<FideLinkSnapshot | null>;
+  list(clubId: string): Promise<FideLinkSnapshot[]>;
+  /** Devuelve false si ese FIDE ID ya está asignado a otro miembro del club. */
+  save(link: FideLinkSnapshot): Promise<boolean>;
+  delete(clubId: string, userId: string): Promise<void>;
+  isMember(clubId: string, userId: string): Promise<boolean>;
+}
+
+export interface FideDeps {
+  readonly links: FideLinksRepository;
+  readonly directory: FideDirectory;
   readonly now: () => Date;
 }

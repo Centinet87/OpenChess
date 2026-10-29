@@ -11,6 +11,7 @@ import {
 import type {
   RatedGame,
   RatingChange,
+  RatingSeeds,
   RatingsRepository,
   Standing,
 } from './ports.js';
@@ -37,6 +38,7 @@ export class RatingsUseCases {
   constructor(
     private readonly ratings: RatingsRepository,
     private readonly system: RatingSystem,
+    private readonly seeds?: RatingSeeds,
   ) {}
 
   /** Actualiza el ranking con una partida terminada. Devuelve lo guardado, o null si no contó. */
@@ -86,11 +88,16 @@ export class RatingsUseCases {
     userIds: readonly string[],
   ): Promise<PlayerRating[]> {
     const found = await this.ratings.find(clubId, userIds);
+    const missing = userIds.filter((id) => !found.some((r) => r.userId === id));
+    const seeds =
+      missing.length && this.seeds
+        ? await this.seeds.find(clubId, missing)
+        : new Map<string, number>();
     return userIds.map((userId) => {
       const snapshot = found.find((r) => r.userId === userId);
       return snapshot
         ? PlayerRating.restore(snapshot)
-        : PlayerRating.initial(clubId, userId);
+        : PlayerRating.initial(clubId, userId, seeds.get(userId));
     });
   }
 }

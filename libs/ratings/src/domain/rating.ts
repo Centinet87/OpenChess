@@ -14,6 +14,21 @@ export const INITIAL_RATING: Rating = {
   volatility: 0.06,
 };
 
+/**
+ * Quien llega con un rating externo (Elo FIDE) parte con ese número, pero con
+ * más incertidumbre que alguien establecido: es otra escala y otro grupo de
+ * rivales, así que debe poder ajustarse rápido en las primeras partidas.
+ */
+export const SEEDED_DEVIATION = 150;
+
+export function seededRating(rating: number): Rating {
+  return {
+    rating,
+    deviation: SEEDED_DEVIATION,
+    volatility: INITIAL_RATING.volatility,
+  };
+}
+
 /** Sobre esta desviación el rating todavía es poco confiable (el mismo umbral que usa Lichess). */
 const PROVISIONAL_DEVIATION = 110;
 

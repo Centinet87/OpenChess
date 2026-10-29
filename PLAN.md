@@ -93,12 +93,13 @@ Se usan donde el problema los pide, no como meta:
 - Tabla de posiciones (`GET /club/ratings`) y perfil de cada jugador con su historial (`GET /club/ratings/:userId`). El PGN de cada partida sale de `GET /club/games/:id`.
 - Visor de partidas para revisarlas jugada a jugada.
 
-### Lichess y Chess.com — hecho en el backend; faltan las pantallas
+### Lichess, Chess.com y Elo FIDE — hecho en el backend; faltan las pantallas
 
 - Cada usuario vincula su cuenta de Lichess (OAuth con PKCE) o de Chess.com (código en el perfil). Una cuenta verificada es de una sola persona.
 - El perfil del club muestra los ratings online de cada miembro.
 - Un miembro trae al club sus partidas de los últimos 30 días. Las de ajedrez estándar entre dos miembros con cuentas verificadas cuentan para el ranking del club.
-- `GET/POST/DELETE /accounts/...` en el dominio raíz; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
+- Elo FIDE: FIDE no tiene login ni API, así que el FIDE ID de un miembro lo asigna un admin (dueño) del club y vale solo en ese club. Se lee la ficha pública de ratings.fide.com (si FIDE cambia esa página, hay que ajustar `apps/api/src/linked-accounts/fide.ts`). Quien tiene Elo FIDE y aún no juega en el club parte con ese rating (RD 150) en vez de 1500.
+- `GET/POST/DELETE /accounts/...` en el dominio raíz; `GET/PUT/DELETE /club/fide/:userId` en el club; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
 
 ### Fase 4: Lanzamiento (media)
 

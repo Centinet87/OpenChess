@@ -5,7 +5,10 @@ export type LinkErrorCode =
   | 'NOT_PENDING'
   | 'CODE_NOT_FOUND'
   | 'NOT_LINKED'
-  | 'PLATFORM_UNAVAILABLE';
+  | 'PLATFORM_UNAVAILABLE'
+  | 'FORBIDDEN'
+  | 'NOT_MEMBER'
+  | 'INVALID_FIDE_ID';
 
 /** Regla de negocio rota. La API traduce el código a un status HTTP. */
 export class LinkError extends Error {

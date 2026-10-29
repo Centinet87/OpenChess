@@ -3,6 +3,7 @@ import { Glicko2System, RatingsUseCases } from '@openchess/ratings';
 import { GamesModule } from '../games/games.module';
 import { IdentityModule } from '../identity/identity.module';
 import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
+import { PrismaFideSeeds } from './prisma-fide-seeds';
 import { PrismaRatingsRepository } from './prisma-ratings.repository';
 import { RatingsController } from './ratings.controller';
 import { RatingsListener } from './ratings.listener';
@@ -13,12 +14,13 @@ import { RatingsListener } from './ratings.listener';
   controllers: [RatingsController],
   providers: [
     PrismaRatingsRepository,
+    PrismaFideSeeds,
     RatingsListener,
     {
       provide: RatingsUseCases,
-      inject: [PrismaRatingsRepository],
-      useFactory: (repo: PrismaRatingsRepository) =>
-        new RatingsUseCases(repo, new Glicko2System()),
+      inject: [PrismaRatingsRepository, PrismaFideSeeds],
+      useFactory: (repo: PrismaRatingsRepository, seeds: PrismaFideSeeds) =>
+        new RatingsUseCases(repo, new Glicko2System(), seeds),
     },
   ],
 })

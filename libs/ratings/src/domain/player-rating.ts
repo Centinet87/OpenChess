@@ -1,4 +1,9 @@
-import { INITIAL_RATING, type Rating, type Score } from './rating.js';
+import {
+  INITIAL_RATING,
+  seededRating,
+  type Rating,
+  type Score,
+} from './rating.js';
 
 export interface PlayerRatingSnapshot {
   readonly clubId: string;
@@ -14,12 +19,15 @@ export interface PlayerRatingSnapshot {
 export class PlayerRating {
   private constructor(readonly snapshot: PlayerRatingSnapshot) {}
 
-  /** Quien todavía no juega en el club parte con el rating inicial. */
-  static initial(clubId: string, userId: string): PlayerRating {
+  /**
+   * Quien todavía no juega en el club parte con el rating inicial o, si tiene
+   * un rating externo de referencia (Elo FIDE), con ese.
+   */
+  static initial(clubId: string, userId: string, seed?: number): PlayerRating {
     return new PlayerRating({
       clubId,
       userId,
-      rating: INITIAL_RATING,
+      rating: seed === undefined ? INITIAL_RATING : seededRating(seed),
       games: 0,
       wins: 0,
       draws: 0,

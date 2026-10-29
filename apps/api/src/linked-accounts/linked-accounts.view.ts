@@ -1,4 +1,6 @@
 import type {
+  FideLinkSnapshot,
+  FideRatings,
   ImportedGameSnapshot,
   LinkedAccountSnapshot,
   OnlineRatings,
@@ -70,5 +72,29 @@ export function toGameView(g: ImportedGameSnapshot): ImportedGameView {
     speed: g.speed,
     standard: g.standard,
     playedAt: g.playedAt.toISOString(),
+  };
+}
+
+export interface FideView {
+  userId: string;
+  fideId: string;
+  name: string;
+  federation: string | null;
+  title: string | null;
+  ratings: FideRatings;
+  url: string;
+  ratingsUpdatedAt: string;
+}
+
+export function toFideView(f: FideLinkSnapshot): FideView {
+  return {
+    userId: f.userId,
+    fideId: f.fideId,
+    name: f.name,
+    federation: f.federation,
+    title: f.title,
+    ratings: f.ratings,
+    url: `https://ratings.fide.com/profile/${f.fideId}`,
+    ratingsUpdatedAt: f.ratingsUpdatedAt.toISOString(),
   };
 }

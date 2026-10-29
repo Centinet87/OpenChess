@@ -14,3 +14,5 @@ export const oauthCallbackSchema = z.object({
   state: z.string().max(128).optional(),
   error: z.string().max(128).optional(),
 });
+
+export const fideIdSchema = z.object({ fideId: z.string().max(12) });

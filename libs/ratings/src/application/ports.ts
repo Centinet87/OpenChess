@@ -53,3 +53,14 @@ export interface RatingsRepository {
     limit: number,
   ): Promise<RatingChange[]>;
 }
+
+/**
+ * Rating de partida para quien todavía no juega en el club (p. ej. su Elo FIDE).
+ * Quien no aparece en el mapa parte en 1500.
+ */
+export interface RatingSeeds {
+  find(
+    clubId: string,
+    userIds: readonly string[],
+  ): Promise<Map<string, number>>;
+}

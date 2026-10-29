@@ -15,6 +15,9 @@ const STATUS: Record<LinkErrorCode, HttpStatus> = {
   CODE_NOT_FOUND: HttpStatus.UNPROCESSABLE_ENTITY,
   NOT_LINKED: HttpStatus.CONFLICT,
   PLATFORM_UNAVAILABLE: HttpStatus.BAD_GATEWAY,
+  FORBIDDEN: HttpStatus.FORBIDDEN,
+  NOT_MEMBER: HttpStatus.NOT_FOUND,
+  INVALID_FIDE_ID: HttpStatus.BAD_REQUEST,
 };
 
 /** Traduce las reglas rotas del dominio a respuestas HTTP con su código. */

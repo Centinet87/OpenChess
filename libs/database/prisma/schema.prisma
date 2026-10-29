@@ -58,6 +58,7 @@ model Club {
   ratings       Rating[]
   ratingChanges RatingChange[]
   importedGames ImportedGame[]
+  fideLinks     FideLink[]
 
   @@map("clubs")
 }
@@ -255,4 +256,26 @@ model ImportedGame {
   @@unique([clubId, platform, externalId])
   @@index([clubId, playedAt])
   @@map("imported_games")
+}
+
+/// FIDE ID de un miembro, agregado por un admin del club. FIDE no tiene login,
+/// así que la confianza es la del club: vale solo dentro de este club.
+model FideLink {
+  clubId           String    @map("club_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  fideId           String    @map("fide_id")
+  name             String
+  federation       String?
+  title            String?
+  /// standard, rapid, blitz
+  ratings          Json      @default("{}")
+  ratingsUpdatedAt DateTime  @map("ratings_updated_at")
+  linkedBy         String    @map("linked_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@unique([clubId, fideId])
+  @@map("fide_links")
 }

@@ -28,6 +28,7 @@ const envSchema = z
     LICHESS_CLIENT_ID: z.string().min(1).default('openchess'),
     LICHESS_URL: z.url().default('https://lichess.org'),
     CHESSCOM_API_URL: z.url().default('https://api.chess.com'),
+    FIDE_URL: z.url().default('https://ratings.fide.com'),
   })
   // Sin dominio compartido la sesión no viaja a los subdominios, y fallaría sin avisar.
   .refine((env) => env.NODE_ENV !== 'production' || !!env.COOKIE_DOMAIN, {

@@ -10,6 +10,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -17,6 +18,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  FideUseCases,
   LinkedAccountsUseCases,
   LinkError,
   type ImportSummary,
@@ -31,6 +33,7 @@ import type { Env } from '../config/env';
 import { AuthGuard } from '../identity/auth.guard';
 import { pkcePair, type LichessOAuth } from './lichess';
 import {
+  fideIdSchema,
   importSchema,
   listImportsSchema,
   oauthCallbackSchema,
@@ -39,8 +42,10 @@ import {
 } from './linked-accounts.schemas';
 import {
   toAccountView,
+  toFideView,
   toGameView,
   toOwnAccountView,
+  type FideView,
   type ImportedGameView,
   type LinkedAccountView,
   type OwnLinkedAccountView,
@@ -50,6 +55,8 @@ export const LICHESS_OAUTH = Symbol('LICHESS_OAUTH');
 
 // Cada uno pega en la plataforma externa: no más de 5 por minuto.
 const EXTERNAL = { default: { limit: 5, ttl: 60_000 } };
+// Un admin puede asignar el FIDE ID de toda una academia de una vez.
+const FIDE_ADMIN = { default: { limit: 30, ttl: 60_000 } };
 
 /** Vincular las cuentas propias de Lichess y Chess.com. Vale en el dominio raíz. */
 @Controller('accounts')
@@ -235,5 +242,65 @@ export class ClubLinkedAccountsController {
     const game = await this.accounts.findImported(this.cls.get('clubId'), id);
     if (!game) throw new NotFoundException('Partida no encontrada');
     return { ...toGameView(game), pgn: game.pgn };
+  }
+}
+
+/**
+ * Elo FIDE de los miembros. Lo asigna un admin del club (FIDE no tiene login para
+ * que la persona pruebe que el FIDE ID es suyo); cualquier miembro lo puede ver.
+ */
+@Controller('club/fide')
+@UseGuards(AuthGuard, ClubMemberGuard)
+export class FideController {
+  constructor(
+    private readonly fide: FideUseCases,
+    private readonly cls: ClsService,
+  ) {}
+
+  @Get()
+  async list(): Promise<FideView[]> {
+    return (await this.fide.list(this.cls.get('clubId'))).map(toFideView);
+  }
+
+  @Get(':userId')
+  async get(@Param('userId', ParseUUIDPipe) userId: string): Promise<FideView> {
+    const link = await this.fide.get(this.cls.get('clubId'), userId);
+    if (!link) throw new NotFoundException('Ese miembro no tiene FIDE ID');
+    return toFideView(link);
+  }
+
+  @Put(':userId')
+  @Throttle(FIDE_ADMIN)
+  async link(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodPipe(fideIdSchema)) body: { fideId: string },
+  ): Promise<FideView> {
+    return toFideView(
+      await this.fide.link(
+        this.cls.get('clubId'),
+        { userId: this.cls.get('userId'), role: this.cls.get('role') },
+        userId,
+        body.fideId,
+      ),
+    );
+  }
+
+  @Post(':userId/refresh')
+  @HttpCode(200)
+  @Throttle(EXTERNAL)
+  async refresh(
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<FideView> {
+    return toFideView(await this.fide.refresh(this.cls.get('clubId'), userId));
+  }
+
+  @Delete(':userId')
+  @HttpCode(204)
+  async unlink(@Param('userId', ParseUUIDPipe) userId: string): Promise<void> {
+    await this.fide.unlink(
+      this.cls.get('clubId'),
+      { role: this.cls.get('role') },
+      userId,
+    );
   }
 }
