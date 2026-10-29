@@ -9,19 +9,19 @@ COPY . .
 RUN npm ci --ignore-scripts
 RUN NODE_ENV=production npx nx run api:build --configuration=production --skip-nx-cache
 
+# Todos los package.json del workspace, sin el resto del código: así una lib nueva
+# entra sola, y si ninguno cambia, la instalación de abajo sale de la caché.
+FROM node:24-bookworm-slim AS manifests
+WORKDIR /app
+COPY . .
+RUN find . -type f ! -name package.json ! -name package-lock.json -delete \
+  && find . -depth -type d -empty -delete
+
 # Solo las dependencias de producción de la API y sus libs (sin Next ni las herramientas).
 # Imagen completa: Prisma elige el motor de migraciones según el OpenSSL que encuentra.
 FROM node:24-bookworm AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/api/package.json apps/api/
-COPY apps/web/package.json apps/web/
-COPY libs/billing/package.json libs/billing/
-COPY libs/clubs/package.json libs/clubs/
-COPY libs/database/package.json libs/database/
-COPY libs/games/package.json libs/games/
-COPY libs/linked-accounts/package.json libs/linked-accounts/
-COPY libs/ratings/package.json libs/ratings/
+COPY --from=manifests /app ./
 RUN npm ci --omit=dev --workspace @openchess/api --ignore-scripts
 # El motor de migraciones de Prisma se descarga en su postinstall.
 RUN cd node_modules/@prisma/engines && node scripts/postinstall.js
