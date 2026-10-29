@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - desa
   pull_request:
 
 permissions:
@@ -25,8 +26,10 @@ jobs:
 
       - run: npm ci
 
-      # Define main como base para que `affected` solo corra lo que cambió
+      # Base de `affected`: la rama destino en un PR, o la misma rama en un push
       - uses: nrwl/nx-set-shas@v4
+        with:
+          main-branch-name: ${{ github.base_ref || github.ref_name }}
 
       - run: npx nx format:check
       - run: npx nx affected -t lint typecheck test build
