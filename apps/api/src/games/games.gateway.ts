@@ -23,6 +23,7 @@ import type { ZodType } from 'zod';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AuthService } from '../identity/auth.service';
+import { isAllowedOrigin } from '../common/origin';
 import { ACCESS_COOKIE } from '../identity/cookies';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 import { GameEventsHub } from './game-events.hub';
@@ -55,21 +56,6 @@ export function allowMessage(
   }
   window.count++;
   return window.count <= MESSAGE_LIMIT;
-}
-
-/** Acepta el dominio de la app y sus subdominios. Frena el secuestro de la sesión desde otros sitios. */
-export function isAllowedOrigin(
-  origin: string | undefined,
-  appDomain: string,
-): boolean {
-  // Sin Origin no es un navegador: no puede usar las cookies de otra persona.
-  if (!origin) return true;
-  try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return host === appDomain || host.endsWith(`.${appDomain}`);
-  } catch {
-    return false;
-  }
 }
 
 /**
