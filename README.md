@@ -35,6 +35,7 @@ npx nx run-many -t serve dev -p api web
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `npx nx run database:generate` | Genera el cliente Prisma                                                                                        |
 | `npx nx run database:migrate`  | Crea y aplica una migración en la BD local                                                                      |
+| `npx nx run database:test-db`  | Tests de aislamiento entre clubes (RLS) contra el Postgres local. Necesita Docker arriba                        |
 | `npm run check`                | Formato, lint, typecheck, test y build de lo que cambió respecto a `origin/desa`. Corre solo antes de cada push |
 | `npx nx graph`                 | Muestra cómo dependen los proyectos entre sí                                                                    |
 

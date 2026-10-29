@@ -1,7 +1,7 @@
 # Cómo contribuir
 
 1. Crea una rama desde `desa`: `feat/<algo>`, `fix/<algo>` o `docs/<algo>`.
-2. `npm install` activa un hook `pre-push` que corre `npm run check` (formato, lint, typecheck, test y build de lo que cambió). Si falla, el push no sale. El CI de GitHub solo corre a mano.
+2. `npm install` activa un hook `pre-push` que corre `npm run check` (formato, lint, typecheck, test, test-db y build de lo que cambió). Como test-db usa la BD local, Docker tiene que estar arriba al hacer push. Si falla, el push no sale. El CI de GitHub solo corre a mano.
 
 3. Usa mensajes de commit con el formato `<tipo>: <descripción>`. Los tipos son `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf` y `ci`.
 

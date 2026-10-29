@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
-    "check": "nx format:check && nx affected -t lint typecheck test build"
+    "check": "nx format:check && nx affected -t lint typecheck test test-db build"
   },
   "private": true,
   "devDependencies": {

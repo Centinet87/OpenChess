@@ -1,4 +1,5 @@
-// Esquema de OpenChess. Los modelos se agregan desde la Fase 1.
+// Esquema de OpenChess.
+// Toda tabla con datos de un club lleva club_id y una política RLS (ver migraciones).
 
 generator client {
   provider = "prisma-client"
@@ -7,4 +8,93 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum MemberRole {
+  OWNER
+  COACH
+  STUDENT
+
+  @@map("member_role")
+}
+
+/// Cuenta global: una persona puede ser miembro de varios clubes.
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  /// Siempre en minúsculas; la app normaliza antes de guardar.
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  displayName     String    @map("display_name")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  memberships        Membership[]
+  refreshTokens      RefreshToken[]
+  invitationsCreated Invitation[]
+
+  @@map("users")
+}
+
+/// El tenant. Se resuelve por el subdominio: <slug>.openchess.app
+model Club {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@map("clubs")
+}
+
+model Membership {
+  id        String     @id @default(uuid()) @db.Uuid
+  clubId    String     @map("club_id") @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  role      MemberRole
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+/// Link de invitación. Se guarda el SHA-256 del token, nunca el token.
+model Invitation {
+  id          String     @id @default(uuid()) @db.Uuid
+  clubId      String     @map("club_id") @db.Uuid
+  tokenHash   String     @unique @map("token_hash")
+  role        MemberRole
+  createdById String     @map("created_by_id") @db.Uuid
+  expiresAt   DateTime   @map("expires_at")
+  acceptedAt  DateTime?  @map("accepted_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  club      Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+  @@map("invitations")
+}
+
+/// Refresh token rotativo. family_id agrupa la cadena de rotaciones:
+/// si se reusa un token ya rotado, se revoca la familia entera.
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id") @db.Uuid
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
 }

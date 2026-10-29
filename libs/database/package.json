@@ -39,6 +39,15 @@
           "cwd": "{projectRoot}"
         }
       },
+      "test-db": {
+        "command": "jest --config jest.db.config.cts --runInBand",
+        "options": {
+          "cwd": "{projectRoot}"
+        },
+        "dependsOn": [
+          "generate"
+        ]
+      },
       "typecheck": {
         "dependsOn": [
           "generate"
