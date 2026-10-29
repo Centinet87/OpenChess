@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   Inject,
-  NotFoundException,
   Post,
   Req,
   Res,
@@ -17,7 +16,6 @@ import { ClsService } from 'nestjs-cls';
 import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
-import { TenantPrisma } from '../infrastructure/prisma.module';
 import { AuthGuard } from './auth.guard';
 import {
   loginSchema,
@@ -25,7 +23,7 @@ import {
   type LoginInput,
   type RegisterInput,
 } from './auth.schemas';
-import { AuthService } from './auth.service';
+import { AuthService, type Profile } from './auth.service';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
@@ -45,7 +43,6 @@ function refreshCookie(req: Request): string | undefined {
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly prisma: TenantPrisma,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -104,12 +101,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
-  async me(): Promise<{ id: string; email: string; displayName: string }> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: this.cls.get('userId') },
-      select: { id: true, email: true, displayName: true },
-    });
-    if (!user) throw new NotFoundException();
-    return user;
+  me(): Promise<Profile> {
+    return this.auth.profile(this.cls.get('userId'));
   }
 }

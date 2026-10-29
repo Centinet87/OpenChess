@@ -12,6 +12,12 @@ export interface TenantContext {
  *
  * shortcut: $queryRaw/$executeRaw no pasan por aquí, y una consulta dentro de un
  * $transaction interactivo tampoco. Si se necesitan, fijar el contexto a mano.
+ * No usar un $transaction interactivo con este cliente: retiene una conexión y
+ * cada consulta de adentro pide otra, así que con un pool chico se bloquea.
+ *
+ * shortcut: cada consulta cuesta una transacción y tres viajes a la BD (rol,
+ * contexto y la consulta), y Prisma no puede agruparlas. Si pesa, fijar el
+ * contexto una vez por request en una transacción.
  */
 export function withTenantContext(
   base: PrismaClient,

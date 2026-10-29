@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -19,6 +20,12 @@ export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export interface Session {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface Profile {
+  id: string;
+  email: string;
+  displayName: string;
 }
 
 export interface AccessTokenPayload {
@@ -119,6 +126,15 @@ export class AuthService {
       select: { familyId: true },
     });
     if (stored) await this.revokeFamily(stored.familyId);
+  }
+
+  async profile(userId: string): Promise<Profile> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, displayName: true },
+    });
+    if (!user) throw new NotFoundException();
+    return user;
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
