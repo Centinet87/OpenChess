@@ -31,12 +31,12 @@ npx nx run-many -t serve dev -p api web
 
 ## Comandos útiles
 
-| Comando                                  | Qué hace                                     |
-| ---------------------------------------- | -------------------------------------------- |
-| `npx nx run database:generate`           | Genera el cliente Prisma                     |
-| `npx nx run database:migrate`            | Crea y aplica una migración en la BD local   |
-| `npx nx run-many -t lint typecheck test` | Lo mismo que corre el CI                     |
-| `npx nx graph`                           | Muestra cómo dependen los proyectos entre sí |
+| Comando                        | Qué hace                                                                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `npx nx run database:generate` | Genera el cliente Prisma                                                                                        |
+| `npx nx run database:migrate`  | Crea y aplica una migración en la BD local                                                                      |
+| `npm run check`                | Formato, lint, typecheck, test y build de lo que cambió respecto a `origin/desa`. Corre solo antes de cada push |
+| `npx nx graph`                 | Muestra cómo dependen los proyectos entre sí                                                                    |
 
 ## Licencia
 

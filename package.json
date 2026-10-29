@@ -2,7 +2,10 @@
   "name": "@openchess/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
+    "check": "nx format:check && nx affected -t lint typecheck test build"
+  },
   "private": true,
   "devDependencies": {
     "@eslint/js": "^9.8.0",

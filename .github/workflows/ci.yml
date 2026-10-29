@@ -1,11 +1,9 @@
 name: CI
 
+# Solo manual (pestaña Actions → Run workflow). El chequeo de cada push corre
+# en local con el hook pre-push (`npm run check`).
 on:
-  push:
-    branches:
-      - main
-      - desa
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

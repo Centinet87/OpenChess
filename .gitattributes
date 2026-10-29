@@ -1,0 +1,2 @@
+# Los hooks los ejecuta sh: con CRLF el shebang deja de funcionar
+.githooks/* text eol=lf
