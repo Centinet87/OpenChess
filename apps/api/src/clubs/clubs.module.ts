@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
+import { BillingUseCases } from '@openchess/billing';
 import { ClubsUseCases } from '@openchess/clubs';
+import { BillingModule } from '../billing/billing.module';
 import { generateOpaqueToken, sha256 } from '../identity/crypto';
 import { IdentityModule } from '../identity/identity.module';
 import { ClubErrorFilter } from './club-error.filter';
@@ -15,7 +17,7 @@ import {
 import { PrismaClubsRepository } from './prisma-clubs.repository';
 
 @Module({
-  imports: [IdentityModule],
+  imports: [IdentityModule, BillingModule],
   controllers: [
     ClubsController,
     ClubController,
@@ -28,8 +30,8 @@ import { PrismaClubsRepository } from './prisma-clubs.repository';
     { provide: APP_FILTER, useClass: ClubErrorFilter },
     {
       provide: ClubsUseCases,
-      inject: [PrismaClubsRepository],
-      useFactory: (repo: PrismaClubsRepository) =>
+      inject: [PrismaClubsRepository, BillingUseCases],
+      useFactory: (repo: PrismaClubsRepository, billing: BillingUseCases) =>
         new ClubsUseCases({
           clubs: repo,
           roles: repo,
@@ -43,6 +45,7 @@ import { PrismaClubsRepository } from './prisma-clubs.repository';
           },
           clock: { now: () => new Date() },
           newId: randomUUID,
+          limits: { maxMembers: (clubId) => billing.maxMembers(clubId) },
         }),
     },
   ],

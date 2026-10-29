@@ -33,12 +33,31 @@ const envSchema = z
     RESEND_API_KEY: z.string().min(1).optional(),
     /** Remitente; el dominio tiene que estar verificado en Resend. */
     EMAIL_FROM: z.string().min(3).default('OpenChess <no-reply@openchess.app>'),
+    /** Sin token no se puede pagar el plan Pro (responde 503). */
+    MP_ACCESS_TOKEN: z.string().min(1).optional(),
+    /** Clave secreta de los webhooks de Mercado Pago, para validar la firma. */
+    MP_WEBHOOK_SECRET: z.string().min(1).optional(),
+    /** Precio mensual del plan Pro, en la moneda de PLAN_CURRENCY. */
+    PLAN_PRO_PRICE: z.coerce.number().positive().default(9990),
+    PLAN_CURRENCY: z.string().length(3).default('CLP'),
   })
   // Sin dominio compartido la sesión no viaja a los subdominios, y fallaría sin avisar.
   .refine((env) => env.NODE_ENV !== 'production' || !!env.COOKIE_DOMAIN, {
     message: 'COOKIE_DOMAIN es obligatorio en producción',
     path: ['COOKIE_DOMAIN'],
   })
+  // Sin la clave, cualquiera podría mandar webhooks (aunque el estado se consulta igual a la API).
+  .refine(
+    (env) =>
+      !env.MP_ACCESS_TOKEN ||
+      env.NODE_ENV !== 'production' ||
+      !!env.MP_WEBHOOK_SECRET,
+    {
+      message:
+        'MP_WEBHOOK_SECRET es obligatorio en producción si hay MP_ACCESS_TOKEN',
+      path: ['MP_WEBHOOK_SECRET'],
+    },
+  )
   .refine((env) => env.NODE_ENV !== 'production' || !!env.RESEND_API_KEY, {
     message: 'RESEND_API_KEY es obligatorio en producción',
     path: ['RESEND_API_KEY'],

@@ -23,6 +23,9 @@
     },
     {
       "path": "./libs/linked-accounts"
+    },
+    {
+      "path": "./libs/billing"
     }
   ],
   "compilerOptions": {}

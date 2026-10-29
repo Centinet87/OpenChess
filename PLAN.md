@@ -31,7 +31,7 @@
 | Tiempo real         | Gateway de WebSocket de Nest (`@nestjs/websockets` + Socket.IO) dentro del monolito                                                                                 | Una sola app que desplegar. Si crece, se separa y se agrega Redis pub/sub                                                        |
 | Ranking             | Glicko-2 implementado en `libs/ratings` (sin librería), probado contra el ejemplo del paper de Glickman                                                             | Estándar online, bien con pocas partidas. La lib `glicko2` no trae tipos; el algoritmo son ~80 líneas puras                      |
 | Hosting             | Vercel para el front, Fly.io o Railway para la API, Neon o Supabase para Postgres                                                                                   | Todo tiene plan gratis para el MVP. La API necesita un servidor persistente por los WebSockets                                   |
-| Cobros              | Stripe, o Mercado Pago/Flow si los clientes son de Chile. Va después del MVP                                                                                        | Primero hay que validar que los clubes lo usen                                                                                   |
+| Cobros              | Mercado Pago: suscripción mensual (preapproval) en CLP                                                                                                              | Primero hay que validar que los clubes lo usen                                                                                   |
 
 ## Estructura del workspace
 
@@ -70,12 +70,12 @@ Se usan donde el problema los pide, no como meta:
 - Archivos `LICENSE` (MIT), `README`, `CONTRIBUTING` y `.env.example`.
 - CI en GitHub Actions en cada PR: formato, lint, typecheck, tests, tests contra Postgres (`test-db`) y build de lo afectado. Para pushear cambios del workflow, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
 
-### Fase 1: Tenants y cuentas (media, la parte crítica) — hecha, salvo verificación de email y recuperación de contraseña
+### Fase 1: Tenants y cuentas (media, la parte crítica) — hecha
 
 - Tablas `clubs`, `users`, `memberships` (con el rol), `invitations` y `refresh_tokens`.
 - Contexto del tenant con `nestjs-cls` y la extensión de Prisma que fija `app.club_id`.
 - Políticas RLS en todas las tablas con `club_id`.
-- Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256.
+- Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256, enviados con Resend.
 - Crear un club, invitar por link con un rol y gestionar roles. Guards de Nest que consultan el rol y sus permisos en `memberships` y `club_roles`.
 - **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro. Aplica a las tablas con `club_id` (`memberships`, `invitations`, `games`). `users`, `clubs` y `refresh_tokens` son globales: no tienen RLS y solo se leen desde `identity` y los guards, nunca devueltas tal cual a otro club.
 
@@ -107,10 +107,11 @@ Se usan donde el problema los pide, no como meta:
 - Elo FIDE: FIDE no tiene login ni API, así que el FIDE ID de un miembro lo asigna quien tiene el permiso `MANAGE_FIDE` y vale solo en ese club. Se lee la ficha pública de ratings.fide.com (si FIDE cambia esa página, hay que ajustar `apps/api/src/linked-accounts/fide.ts`). Quien tiene Elo FIDE y aún no juega en el club parte con ese rating (RD 150) en vez de 1500.
 - `GET/POST/DELETE /accounts/...` en el dominio raíz; `GET/PUT/DELETE /club/fide/:userId` en el club; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
 
-### Fase 4: Lanzamiento (media)
+### Fase 4: Lanzamiento (media) — planes y cobro hechos en el backend; faltan las páginas
 
 - Página pública, términos de uso y política de privacidad.
-- Plan gratis con límite de miembros y plan pagado. Aquí entra el cobro.
+- Plan gratis con límite de 15 miembros y plan Pro sin límite, con suscripción mensual de Mercado Pago (`libs/billing`). Lo paga y lo cancela solo el dueño del club. El club pasa a Pro cuando Mercado Pago confirma el pago: el webhook se valida con su firma y el estado se consulta a la API, nunca se confía en el aviso. Si un club Pro cancela con más de 15 miembros, nadie sale, pero no entran nuevos.
+- `GET /club/plan`, `POST /club/plan/checkout` (devuelve el link de pago), `POST /club/plan/cancel` y `POST /billing/mercadopago/webhook`.
 
 ### Fuera del MVP
 

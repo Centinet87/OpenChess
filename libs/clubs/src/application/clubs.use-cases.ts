@@ -126,6 +126,7 @@ export class ClubsUseCases {
   ): Promise<{ token: string; expiresAt: Date }> {
     const roster = await this.roster(clubId);
     roster.assertCanInvite(inviterId, roleId);
+    await this.assertRoomFor(clubId, roster.all.length);
 
     const { token, hash } = this.deps.tokens.issue();
     const expiresAt = invitationExpiry(this.deps.clock.now());
@@ -155,6 +156,10 @@ export class ClubsUseCases {
     const existing = await this.deps.clubs.findMember(clubId, userId);
     assertAcceptable(invitation, now, existing !== null);
 
+    await this.assertRoomFor(
+      clubId,
+      (await this.deps.clubs.members(clubId)).length,
+    );
     if (!(await this.deps.invitations.markAccepted(invitation.id, now))) {
       throw new ClubError('INVITATION_USED', 'Esta invitación ya se usó');
     }
@@ -185,6 +190,17 @@ export class ClubsUseCases {
     const roster = await this.roster(clubId);
     roster.remove(actorId, targetId);
     await this.deps.clubs.removeMember(clubId, targetId);
+  }
+
+  /** El plan gratis tiene tope: si está lleno no se invita ni entra nadie más. */
+  private async assertRoomFor(clubId: string, members: number): Promise<void> {
+    const max = await this.deps.limits?.maxMembers(clubId);
+    if (max != null && members >= max) {
+      throw new ClubError(
+        'MEMBER_LIMIT',
+        `El club llegó al máximo de ${max} miembros de su plan`,
+      );
+    }
   }
 
   private async book(clubId: string): Promise<RoleBook> {

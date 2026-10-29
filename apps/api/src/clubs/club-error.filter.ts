@@ -21,6 +21,7 @@ const STATUS: Record<ClubErrorCode, HttpStatus> = {
   ROLE_NOT_FOUND: HttpStatus.NOT_FOUND,
   INVALID_ROLE: HttpStatus.BAD_REQUEST,
   ROLE_IN_USE: HttpStatus.CONFLICT,
+  MEMBER_LIMIT: HttpStatus.PAYMENT_REQUIRED,
 };
 
 /** Traduce las reglas rotas del dominio a respuestas HTTP con su código. */

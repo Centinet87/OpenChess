@@ -53,6 +53,7 @@ model Club {
   importedGames ImportedGame[]
   fideLinks     FideLink[]
   roles         ClubRole[]
+  subscription  Subscription?
 
   @@map("clubs")
 }
@@ -324,4 +325,23 @@ model EmailToken {
 
   @@index([userId, purpose])
   @@map("email_tokens")
+}
+
+/// Suscripción del club al plan pagado (ver libs/billing). Sin fila, el club
+/// está en el plan gratis. El estado lo confirma Mercado Pago, no el cliente.
+model Subscription {
+  clubId                 String    @id @map("club_id") @db.Uuid
+  provider               String
+  /// Id de la suscripción en el proveedor (preapproval de Mercado Pago).
+  providerSubscriptionId String    @unique @map("provider_subscription_id")
+  /// pending, active, paused o cancelled
+  status                 String
+  payerEmail             String    @map("payer_email")
+  nextPaymentAt          DateTime? @map("next_payment_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }

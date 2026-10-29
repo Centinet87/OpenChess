@@ -117,7 +117,7 @@ class MemoryInvitations implements InvitationsRepository {
   }
 }
 
-function setup() {
+function setup(maxMembers: number | null = null) {
   let n = 0;
   let ids = 0;
   let now = new Date('2026-01-01T00:00:00Z');
@@ -133,6 +133,7 @@ function setup() {
     },
     clock: { now: () => now },
     newId: () => `id-${++ids}`,
+    limits: { maxMembers: async () => maxMembers },
   });
   return {
     useCases,
@@ -153,8 +154,8 @@ async function errorCode(
 }
 
 /** Club de Ana con sus roles iniciales. */
-async function club() {
-  const ctx = setup();
+async function club(maxMembers: number | null = null) {
+  const ctx = setup(maxMembers);
   const { id } = await ctx.useCases.createClub('ana', {
     slug: 'club',
     name: 'Club',
@@ -287,5 +288,20 @@ describe('ClubsUseCases', () => {
       userId: 'ana',
       roleId: role('Admin').id,
     });
+  });
+
+  it('con el club lleno según su plan no se invita ni entra nadie más', async () => {
+    const { useCases, id, role } = await club(2);
+    const { token } = await useCases.invite(id, 'ana', role('Alumno').id);
+    const late = await useCases.invite(id, 'ana', role('Alumno').id);
+    await useCases.acceptInvitation(id, 'beto', token);
+
+    expect(await errorCode(useCases.invite(id, 'ana', role('Alumno').id))).toBe(
+      'MEMBER_LIMIT',
+    );
+    // Una invitación de antes tampoco hace pasar a un tercero.
+    expect(
+      await errorCode(useCases.acceptInvitation(id, 'caro', late.token)),
+    ).toBe('MEMBER_LIMIT');
   });
 });

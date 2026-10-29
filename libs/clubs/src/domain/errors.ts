@@ -11,7 +11,8 @@ export type ClubErrorCode =
   | 'INVITATION_USED'
   | 'ROLE_NOT_FOUND'
   | 'INVALID_ROLE'
-  | 'ROLE_IN_USE';
+  | 'ROLE_IN_USE'
+  | 'MEMBER_LIMIT';
 
 /** Regla de negocio rota. La API traduce el código a un status HTTP. */
 export class ClubError extends Error {

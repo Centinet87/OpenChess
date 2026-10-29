@@ -73,6 +73,12 @@ export interface Clock {
   now(): Date;
 }
 
+/** Tope de miembros según el plan del club (lo decide la facturación). */
+export interface MemberLimits {
+  /** null: sin tope. */
+  maxMembers(clubId: string): Promise<number | null>;
+}
+
 export interface ClubsDeps {
   readonly clubs: ClubsRepository;
   readonly roles: RolesRepository;
@@ -80,4 +86,6 @@ export interface ClubsDeps {
   readonly tokens: TokenIssuer;
   readonly clock: Clock;
   readonly newId: () => string;
+  /** Sin esto no hay tope (p. ej. en tests). */
+  readonly limits?: MemberLimits;
 }
