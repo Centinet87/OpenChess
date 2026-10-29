@@ -89,6 +89,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/throttler": "^6.7.1",
     "@node-rs/argon2": "^2.2.2",
+    "@openchess/clubs": "^0.0.1",
     "@openchess/database": "^0.0.1",
     "cookie-parser": "^1.4.7",
     "nestjs-cls": "^7.0.2",

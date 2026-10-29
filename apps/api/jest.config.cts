@@ -17,5 +17,7 @@ module.exports = {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
+  // Las libs importan con extensión .js (ESM); en Jest apuntan al .ts.
+  moduleNameMapper: { '^(\.{1,2}/.*)\.js$': '$1' },
   coverageDirectory: 'test-output/jest/coverage',
 };

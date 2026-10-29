@@ -42,7 +42,7 @@ apps/
 libs/
   shared/kernel/       Value objects y errores de dominio comunes (ClubId, UserId, Result)
   shared/contracts/    DTOs y eventos que comparten api y web
-  identity/            Usuarios, auth, sesiones (CRUD + servicios)
+  (identity vive por ahora en apps/api/src/identity: solo la usa la API)
   clubs/               Clubes, membresías, invitaciones (dominio rico: reglas de roles)
   games/               Partidas, reloj, jugadas (dominio rico)
   ratings/             Glicko-2 y tabla de posiciones (dominio rico)
@@ -70,7 +70,7 @@ Se usan donde el problema los pide, no como meta:
 - Archivos `LICENSE` (MIT), `README`, `CONTRIBUTING` y `.env.example`.
 - CI en GitHub Actions con `nx affected` para lint, typecheck y tests. Para pushear esto, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
 
-### Fase 1: Tenants y cuentas (media, la parte crítica)
+### Fase 1: Tenants y cuentas (media, la parte crítica) — hecha, salvo verificación de email y recuperación de contraseña
 
 - Tablas `clubs`, `users`, `memberships` (con el rol), `invitations` y `refresh_tokens`.
 - Contexto del tenant con `nestjs-cls` y la extensión de Prisma que fija `app.club_id`.

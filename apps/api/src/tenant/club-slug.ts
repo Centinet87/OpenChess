@@ -1,5 +1,4 @@
-/** Subdominios que no son clubes. */
-const RESERVED = new Set(['www', 'api', 'app', 'admin']);
+import { RESERVED_SUBDOMAINS } from '@openchess/clubs';
 
 /**
  * Saca el slug del club del Host: "miclub.openchess.app" → "miclub".
@@ -17,5 +16,5 @@ export function resolveClubSlug(
 
   const slug = hostname.slice(0, -(domain.length + 1));
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
-  return RESERVED.has(slug) ? null : slug;
+  return RESERVED_SUBDOMAINS.has(slug) ? null : slug;
 }

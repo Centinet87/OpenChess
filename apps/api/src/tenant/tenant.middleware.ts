@@ -12,11 +12,12 @@ import { TenantPrisma } from '../infrastructure/prisma.module';
 import { resolveClubSlug } from './club-slug';
 
 /**
- * Fija el club de la request a partir del subdominio. Detrás del proxy de Next
+ * Anota qué club pide la request según el subdominio. Detrás del proxy de Next
  * el Host original llega en X-Forwarded-Host.
  *
- * Fijar el club no da acceso a nada: RLS limita las filas al club, y los guards
- * de rol exigen además una membresía del usuario en ese club.
+ * Solo deja `requestedClubId`. El `clubId` que usa RLS lo fija ClubMemberGuard
+ * después de comprobar la membresía: si una ruta olvida el guard, RLS no
+ * devuelve filas del club en vez de devolvérselas a cualquiera.
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
@@ -37,7 +38,7 @@ export class TenantMiddleware implements NestMiddleware {
     });
     if (!club) throw new NotFoundException('Club no encontrado');
 
-    this.cls.set('clubId', club.id);
+    this.cls.set('requestedClubId', club.id);
     next();
   }
 }

@@ -11,6 +11,9 @@
     },
     {
       "path": "./libs/database"
+    },
+    {
+      "path": "./libs/clubs"
     }
   ],
   "compilerOptions": {}

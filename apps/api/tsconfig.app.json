@@ -25,6 +25,9 @@
   "references": [
     {
       "path": "../../libs/database/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/clubs/tsconfig.lib.json"
     }
   ]
 }
