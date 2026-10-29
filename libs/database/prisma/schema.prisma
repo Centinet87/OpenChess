@@ -2,8 +2,11 @@
 // Toda tabla con datos de un club lleva club_id y una política RLS (ver migraciones).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // CommonJS: en ESM el cliente usa import.meta.url, webpack lo trata como módulo
+  // ESM y se pierde el export ("PrismaClient is not a constructor" al arrancar la API).
+  moduleFormat = "cjs"
 }
 
 datasource db {

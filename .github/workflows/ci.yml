@@ -69,3 +69,14 @@ jobs:
           else
             npx nx run-many -t lint typecheck test test-db build
           fi
+
+      # Que compile no basta: el bundle de webpack puede romper el cliente de Prisma al arrancar.
+      - name: La API compilada arranca
+        run: |
+          npx nx run api:build
+          node apps/api/dist/main.js &
+          for i in $(seq 1 30); do
+            curl -sf localhost:3333/api && exit 0
+            sleep 1
+          done
+          exit 1
