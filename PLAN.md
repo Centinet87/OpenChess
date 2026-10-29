@@ -1,6 +1,6 @@
 # Plan: OpenChess, un SaaS multi-tenant para clubes de ajedrez
 
-**Estado:** aprobado. Fase 0 lista (sin commit).
+**Estado:** aprobado. Fases 0 y 1 hechas; la Fase 2 está hecha en el backend.
 **Licencia:** MIT
 **Complejidad:** alta en total. La Fase 2 (tiempo real) es la más pesada.
 
@@ -68,7 +68,7 @@ Se usan donde el problema los pide, no como meta:
 - Workspace Nx con `apps/api` (Nest), `apps/web` (Next) y `libs/database` (Prisma). Postgres en Docker para desarrollo.
 - Reglas de `enforce-module-boundaries` desde el primer commit.
 - Archivos `LICENSE` (MIT), `README`, `CONTRIBUTING` y `.env.example`.
-- CI en GitHub Actions con `nx affected` para lint, typecheck y tests. Para pushear esto, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
+- CI en GitHub Actions en cada PR: formato, lint, typecheck, tests, tests contra Postgres (`test-db`) y build de lo afectado. Para pushear cambios del workflow, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
 
 ### Fase 1: Tenants y cuentas (media, la parte crítica) — hecha, salvo verificación de email y recuperación de contraseña
 
@@ -77,7 +77,7 @@ Se usan donde el problema los pide, no como meta:
 - Políticas RLS en todas las tablas con `club_id`.
 - Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256.
 - Crear un club, invitar alumnos por link y gestionar roles. Guards de Nest que consultan el rol en `memberships`.
-- **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro.
+- **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro. Aplica a las tablas con `club_id` (`memberships`, `invitations`, `games`). `users`, `clubs` y `refresh_tokens` son globales: no tienen RLS y solo se leen desde `identity` y los guards, nunca devueltas tal cual a otro club.
 
 ### Fase 2: Jugar (alta) — hecha en el backend; falta el tablero en el front
 
