@@ -13,8 +13,8 @@ config({ path: '../../.env', quiet: true });
 
 const base = createPrismaClient(process.env['DATABASE_URL'] ?? '');
 const run = randomUUID().slice(0, 8);
-const slug = `own-${run}`;
-const names = ['ana', 'beto'] as const;
+const slug = `race-${run}`;
+const names = ['ana', 'beto', 'caro'] as const;
 const emails = names.map((n) => `${n}-${run}@test.local`);
 
 let app: NestExpressApplication;
@@ -46,7 +46,7 @@ beforeAll(async () => {
         raw.find((c) => c.startsWith(`${ACCESS_COOKIE}=`))?.split(';')[0] ?? '',
     };
   }
-  clubId = (await base.club.create({ data: { slug, name: 'Dueños' } })).id;
+  clubId = (await base.club.create({ data: { slug, name: 'Carreras' } })).id;
 });
 
 afterAll(async () => {
@@ -88,7 +88,7 @@ describe('el club siempre tiene un dueño', () => {
     expect(await owners()).toBe(2);
 
     const statuses = await Promise.all(
-      names.map((name) =>
+      (['ana', 'beto'] as const).map((name) =>
         request(app.getHttpServer())
           .delete(`/api/club/members/${users[name].id}`)
           .set('Cookie', users[name].cookie)
@@ -99,5 +99,47 @@ describe('el club siempre tiene un dueño', () => {
     expect(statuses.map((s) => s.status).sort()).toEqual([204, 409]);
     expect(statuses.find((s) => s.status === 409)?.code).toBe('LAST_OWNER');
     expect(await owners()).toBe(1);
+  });
+});
+
+describe('invitaciones', () => {
+  it('si alguien acepta dos invitaciones a la vez, entra una sola vez', async () => {
+    const owner = (await base.membership.findFirstOrThrow({
+      where: { clubId, role: { isOwner: true } },
+      select: { userId: true },
+    })) as { userId: string };
+    const ownerName = names.find((n) => users[n].id === owner.userId);
+    if (!ownerName) throw new Error('El club no tiene dueño');
+    const alumno = await base.clubRole.findFirstOrThrow({
+      where: { clubId, name: 'Alumno' },
+    });
+
+    const tokens: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const res = await request(app.getHttpServer())
+        .post('/api/club/invitations')
+        .set('Cookie', users[ownerName].cookie)
+        .set('Host', `${slug}.localhost`)
+        .send({ roleId: alumno.id })
+        .expect(201);
+      tokens.push(res.body.token);
+    }
+
+    const results = await Promise.all(
+      tokens.map((token) =>
+        request(app.getHttpServer())
+          .post('/api/club/invitations/accept')
+          .set('Cookie', users.caro.cookie)
+          .set('Host', `${slug}.localhost`)
+          .send({ token })
+          .then((r) => ({ status: r.status, code: r.body.code })),
+      ),
+    );
+    // Nunca un 500: o entra, o ya es miembro.
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(results.find((r) => r.status === 409)?.code).toBe('ALREADY_MEMBER');
+    expect(
+      await base.membership.count({ where: { clubId, userId: users.caro.id } }),
+    ).toBe(1);
   });
 });

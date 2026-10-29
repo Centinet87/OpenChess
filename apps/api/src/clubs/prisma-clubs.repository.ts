@@ -142,7 +142,15 @@ export class PrismaClubsRepository
   }
 
   async addMember(clubId: string, member: Member): Promise<void> {
-    await this.db.membership.create({ data: { clubId, ...member } });
+    await this.db.membership
+      .create({ data: { clubId, ...member } })
+      .catch((error: unknown) => {
+        // Dos invitaciones aceptadas a la vez por la misma persona: entra una sola vez.
+        if ((error as { code?: string }).code === 'P2002') {
+          throw new ClubError('ALREADY_MEMBER', 'Ya eres miembro de este club');
+        }
+        throw error;
+      });
   }
 
   async updateRole(
