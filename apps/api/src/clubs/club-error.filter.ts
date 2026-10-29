@@ -5,6 +5,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import { ClubError, type ClubErrorCode } from '@openchess/clubs';
+import type { ApiError } from '@openchess/contracts';
 import type { Response } from 'express';
 
 const STATUS: Record<ClubErrorCode, HttpStatus> = {
@@ -33,6 +34,10 @@ export class ClubErrorFilter implements ExceptionFilter<ClubError> {
       .switchToHttp()
       .getResponse<Response>()
       .status(status)
-      .json({ statusCode: status, code: error.code, message: error.message });
+      .json({
+        statusCode: status,
+        code: error.code,
+        message: error.message,
+      } satisfies ApiError);
   }
 }

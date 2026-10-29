@@ -11,7 +11,7 @@ import { ClsService } from 'nestjs-cls';
 import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
-import type { Ack } from '../games/games.gateway';
+import type { GameAck } from '@openchess/contracts';
 import { ACCESS_COOKIE } from '../identity/cookies';
 import { RatingsListener } from './ratings.listener';
 
@@ -66,7 +66,7 @@ async function command(
   event: string,
   payload: unknown,
 ): Promise<void> {
-  const ack: Ack = await socket.timeout(5000).emitWithAck(event, payload);
+  const ack: GameAck = await socket.timeout(5000).emitWithAck(event, payload);
   if (!ack.ok) throw new Error(`${event}: ${JSON.stringify(ack)}`);
 }
 

@@ -18,11 +18,26 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
+  fideIdSchema,
+  importSchema,
+  listImportsSchema,
+  platformSchema,
+  usernameSchema,
+  type FideIdInput,
+  type FideView,
+  type ImportedGameDetail,
+  type ImportInput,
+  type ImportedGameView,
+  type ImportSummary,
+  type LinkedAccountView,
+  type OwnLinkedAccountView,
+  type Platform,
+  type UsernameInput,
+} from '@openchess/contracts';
+import {
   FideUseCases,
   LinkedAccountsUseCases,
   LinkError,
-  type ImportSummary,
-  type Platform,
 } from '@openchess/linked-accounts';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
@@ -34,23 +49,12 @@ import { ENV } from '../config/config.module';
 import { secureCookies, type Env } from '../config/env';
 import { AuthGuard } from '../identity/auth.guard';
 import { pkcePair, type LichessOAuth } from './lichess';
-import {
-  fideIdSchema,
-  importSchema,
-  listImportsSchema,
-  oauthCallbackSchema,
-  platformSchema,
-  usernameSchema,
-} from './linked-accounts.schemas';
+import { oauthCallbackSchema } from './linked-accounts.schemas';
 import {
   toAccountView,
   toFideView,
   toGameView,
   toOwnAccountView,
-  type FideView,
-  type ImportedGameView,
-  type LinkedAccountView,
-  type OwnLinkedAccountView,
 } from './linked-accounts.view';
 
 export const LICHESS_OAUTH = Symbol('LICHESS_OAUTH');
@@ -79,7 +83,7 @@ export class LinkedAccountsController {
   @Post('chesscom')
   @Throttle(EXTERNAL)
   async startChessCom(
-    @Body(new ZodPipe(usernameSchema)) body: { username: string },
+    @Body(new ZodPipe(usernameSchema)) body: UsernameInput,
   ): Promise<OwnLinkedAccountView> {
     return toOwnAccountView(
       await this.accounts.startVerification(
@@ -218,7 +222,7 @@ export class ClubLinkedAccountsController {
   @Throttle(EXTERNAL)
   @RequirePermission('IMPORT_GAMES')
   importGames(
-    @Body(new ZodPipe(importSchema)) body: { platform: Platform },
+    @Body(new ZodPipe(importSchema)) body: ImportInput,
   ): Promise<ImportSummary> {
     return this.accounts.importGames(
       this.cls.get('clubId'),
@@ -241,7 +245,7 @@ export class ClubLinkedAccountsController {
   @Get('imports/:id')
   async getImport(
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ImportedGameView & { pgn: string }> {
+  ): Promise<ImportedGameDetail> {
     const game = await this.accounts.findImported(this.cls.get('clubId'), id);
     if (!game) throw new NotFoundException('Partida no encontrada');
     return { ...toGameView(game), pgn: game.pgn };
@@ -277,7 +281,7 @@ export class FideController {
   @Throttle(FIDE_ADMIN)
   async link(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Body(new ZodPipe(fideIdSchema)) body: { fideId: string },
+    @Body(new ZodPipe(fideIdSchema)) body: FideIdInput,
   ): Promise<FideView> {
     return toFideView(
       await this.fide.link(

@@ -9,18 +9,20 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  challengeSchema,
+  listGamesSchema,
+  type ChallengeInput,
+  type GameStatus,
+  type GameView,
+} from '@openchess/contracts';
 import { GamesUseCases } from '@openchess/games';
 import { ClsService } from 'nestjs-cls';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { AuthGuard } from '../identity/auth.guard';
-import { toView, type GameView } from './game-view';
-import {
-  challengeSchema,
-  listSchema,
-  type ChallengeInput,
-} from './games.schemas';
+import { toView } from './game-view';
 
 /**
  * Desafíos y consulta de partidas por HTTP. Las jugadas van por WebSocket
@@ -49,9 +51,9 @@ export class GamesController {
 
   @Get()
   async list(
-    @Query(new ZodPipe(listSchema))
+    @Query(new ZodPipe(listGamesSchema))
     query: {
-      status: ('pending' | 'in_progress' | 'finished')[];
+      status: GameStatus[];
     },
   ): Promise<GameView[]> {
     const now = Date.now();

@@ -6,43 +6,19 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
+import type {
+  ProfileView,
+  RatingView,
+  StandingView,
+} from '@openchess/contracts';
 import {
   isProvisional,
   RatingsUseCases,
   type PlayerRatingSnapshot,
-  type Score,
 } from '@openchess/ratings';
 import { ClsService } from 'nestjs-cls';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { AuthGuard } from '../identity/auth.guard';
-
-export interface RatingView {
-  userId: string;
-  rating: number;
-  deviation: number;
-  /** Pocas partidas todavía: el rating puede moverse mucho. */
-  provisional: boolean;
-  games: number;
-  wins: number;
-  draws: number;
-  losses: number;
-}
-
-export interface StandingView extends RatingView {
-  position: number;
-  displayName: string;
-}
-
-export interface ProfileView extends RatingView {
-  history: {
-    gameId: string;
-    opponentId: string;
-    score: Score;
-    ratingBefore: number;
-    ratingAfter: number;
-    playedAt: string;
-  }[];
-}
 
 function toView(s: PlayerRatingSnapshot): RatingView {
   return {

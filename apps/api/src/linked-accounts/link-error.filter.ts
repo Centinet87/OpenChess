@@ -4,6 +4,7 @@ import {
   type ArgumentsHost,
   type ExceptionFilter,
 } from '@nestjs/common';
+import type { ApiError } from '@openchess/contracts';
 import { LinkError, type LinkErrorCode } from '@openchess/linked-accounts';
 import type { Response } from 'express';
 
@@ -29,6 +30,10 @@ export class LinkErrorFilter implements ExceptionFilter<LinkError> {
       .switchToHttp()
       .getResponse<Response>()
       .status(status)
-      .json({ statusCode: status, code: error.code, message: error.message });
+      .json({
+        statusCode: status,
+        code: error.code,
+        message: error.message,
+      } satisfies ApiError);
   }
 }

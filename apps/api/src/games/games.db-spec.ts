@@ -11,8 +11,8 @@ import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import { ACCESS_COOKIE } from '../identity/cookies';
-import { MESSAGE_LIMIT, type Ack } from './games.gateway';
-import type { GameView } from './game-view';
+import type { GameAck, GameView } from '@openchess/contracts';
+import { MESSAGE_LIMIT } from './games.gateway';
 
 config({ path: '../../.env', quiet: true });
 
@@ -59,7 +59,11 @@ function connected(socket: Socket): Promise<void> {
   });
 }
 
-function emit(socket: Socket, event: string, payload: unknown): Promise<Ack> {
+function emit(
+  socket: Socket,
+  event: string,
+  payload: unknown,
+): Promise<GameAck> {
   return socket.timeout(5000).emitWithAck(event, payload);
 }
 

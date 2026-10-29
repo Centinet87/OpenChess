@@ -89,6 +89,7 @@
     "@node-rs/argon2": "^2.2.2",
     "@openchess/billing": "^0.0.1",
     "@openchess/clubs": "^0.0.1",
+    "@openchess/contracts": "^0.0.1",
     "@openchess/database": "^0.0.1",
     "@openchess/games": "^0.0.1",
     "@openchess/linked-accounts": "^0.0.1",

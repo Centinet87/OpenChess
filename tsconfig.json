@@ -26,6 +26,9 @@
     },
     {
       "path": "./libs/billing"
+    },
+    {
+      "path": "./libs/contracts"
     }
   ],
   "compilerOptions": {}

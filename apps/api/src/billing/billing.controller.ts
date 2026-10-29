@@ -12,7 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { BillingUseCases, type PlanId } from '@openchess/billing';
+import { BillingUseCases } from '@openchess/billing';
+import type { CheckoutView, PlanView } from '@openchess/contracts';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { z } from 'zod';
@@ -23,14 +24,6 @@ import type { Env } from '../config/env';
 import { AuthGuard } from '../identity/auth.guard';
 import { AuthService } from '../identity/auth.service';
 import { isValidWebhookSignature } from './mercadopago';
-
-export interface PlanView {
-  plan: PlanId;
-  maxMembers: number | null;
-  members: number;
-  status: string | null;
-  nextPaymentAt: string | null;
-}
 
 /** Plan del club: lo ve cualquier miembro; lo cambia solo el dueño. */
 @Controller('club/plan')
@@ -58,7 +51,7 @@ export class PlanController {
   /** Devuelve el link de pago de Mercado Pago. Al volver, el front va a /plan. */
   @Post('checkout')
   @HttpCode(200)
-  async checkout(): Promise<{ checkoutUrl: string }> {
+  async checkout(): Promise<CheckoutView> {
     const userId = this.cls.get('userId');
     const { email } = await this.auth.profile(userId);
     return this.billing.checkout(

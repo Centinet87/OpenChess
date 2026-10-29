@@ -12,34 +12,32 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { ClubsUseCases, PERMISSIONS } from '@openchess/clubs';
 import {
-  ClubsUseCases,
-  PERMISSIONS,
-  type ClubRole,
+  acceptInvitationSchema,
+  createClubSchema,
+  createRoleSchema,
+  reorderRolesSchema,
+  roleIdSchema,
+  updateRoleSchema,
+  type AcceptedInvitation,
+  type AcceptInvitationInput,
+  type CreateClubInput,
+  type CreatedClub,
+  type CreateRoleInput,
+  type InvitationView,
   type MemberView,
-  type MyClub,
+  type MyClubView,
   type Permission,
-  type RoleSummary,
-} from '@openchess/clubs';
+  type ReorderRolesInput,
+  type RoleIdInput,
+  type RoleView,
+  type UpdateRoleInput,
+} from '@openchess/contracts';
 import { ClsService } from 'nestjs-cls';
 import { ZodPipe } from '../common/zod.pipe';
 import { AuthGuard } from '../identity/auth.guard';
 import { ClubMemberGuard } from './club-member.guard';
-import {
-  acceptInvitationSchema,
-  changeRoleSchema,
-  createClubSchema,
-  createRoleSchema,
-  inviteSchema,
-  reorderRolesSchema,
-  updateRoleSchema,
-  type AcceptInvitationInput,
-  type CreateClubInput,
-  type CreateRoleInput,
-  type ReorderRolesInput,
-  type RoleIdInput,
-  type UpdateRoleInput,
-} from './clubs.schemas';
 
 /** Dominio raíz: crear clubes y listar los míos. */
 @Controller('clubs')
@@ -53,12 +51,12 @@ export class ClubsController {
   @Post()
   create(
     @Body(new ZodPipe(createClubSchema)) body: CreateClubInput,
-  ): Promise<{ id: string; slug: string }> {
+  ): Promise<CreatedClub> {
     return this.clubs.createClub(this.cls.get('userId'), body);
   }
 
   @Get('mine')
-  mine(): Promise<MyClub[]> {
+  mine(): Promise<MyClubView[]> {
     return this.clubs.listMyClubs(this.cls.get('userId'));
   }
 }
@@ -79,7 +77,7 @@ export class ClubController {
 
   /** Mi rol y mis permisos en este club: el front lo usa para saber qué mostrar. */
   @Get('me')
-  me(): Promise<ClubRole> {
+  me(): Promise<RoleView> {
     return this.clubs.myRole(this.cls.get('clubId'), this.cls.get('userId'));
   }
 
@@ -87,7 +85,7 @@ export class ClubController {
   @HttpCode(204)
   changeRole(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Body(new ZodPipe(changeRoleSchema)) body: RoleIdInput,
+    @Body(new ZodPipe(roleIdSchema)) body: RoleIdInput,
   ): Promise<void> {
     return this.clubs.changeMemberRole(
       this.cls.get('clubId'),
@@ -108,14 +106,15 @@ export class ClubController {
   }
 
   @Post('invitations')
-  invite(
-    @Body(new ZodPipe(inviteSchema)) body: RoleIdInput,
-  ): Promise<{ token: string; expiresAt: Date }> {
-    return this.clubs.invite(
+  async invite(
+    @Body(new ZodPipe(roleIdSchema)) body: RoleIdInput,
+  ): Promise<InvitationView> {
+    const { token, expiresAt } = await this.clubs.invite(
       this.cls.get('clubId'),
       this.cls.get('userId'),
       body.roleId,
     );
+    return { token, expiresAt: expiresAt.toISOString() };
   }
 }
 
@@ -132,7 +131,7 @@ export class RolesController {
   ) {}
 
   @Get()
-  list(): Promise<readonly ClubRole[]> {
+  list(): Promise<readonly RoleView[]> {
     return this.clubs.listRoles(this.cls.get('clubId'));
   }
 
@@ -145,7 +144,7 @@ export class RolesController {
   @Post()
   create(
     @Body(new ZodPipe(createRoleSchema)) body: CreateRoleInput,
-  ): Promise<ClubRole> {
+  ): Promise<RoleView> {
     return this.clubs.createRole(
       this.cls.get('clubId'),
       this.cls.get('userId'),
@@ -157,7 +156,7 @@ export class RolesController {
   @Put('order')
   reorder(
     @Body(new ZodPipe(reorderRolesSchema)) body: ReorderRolesInput,
-  ): Promise<readonly ClubRole[]> {
+  ): Promise<readonly RoleView[]> {
     return this.clubs.reorderRoles(
       this.cls.get('clubId'),
       this.cls.get('userId'),
@@ -169,7 +168,7 @@ export class RolesController {
   update(
     @Param('roleId', ParseUUIDPipe) roleId: string,
     @Body(new ZodPipe(updateRoleSchema)) body: UpdateRoleInput,
-  ): Promise<ClubRole> {
+  ): Promise<RoleView> {
     return this.clubs.updateRole(
       this.cls.get('clubId'),
       this.cls.get('userId'),
@@ -202,7 +201,7 @@ export class AcceptInvitationController {
   @HttpCode(200)
   accept(
     @Body(new ZodPipe(acceptInvitationSchema)) body: AcceptInvitationInput,
-  ): Promise<{ role: RoleSummary }> {
+  ): Promise<AcceptedInvitation> {
     const clubId = this.cls.get<string | undefined>('requestedClubId');
     if (!clubId) throw new NotFoundException('Club no encontrado');
     // Única ruta que abre el contexto del club sin ser miembro: el token es la autorización,

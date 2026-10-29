@@ -6,13 +6,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { TenantPrisma } from '../infrastructure/prisma.module';
 import type {
   ChangePasswordInput,
   LoginInput,
+  Profile,
   RegisterInput,
   UpdateProfileInput,
-} from './auth.schemas';
+} from '@openchess/contracts';
+import { TenantPrisma } from '../infrastructure/prisma.module';
 import {
   generateOpaqueToken,
   hashPassword,
@@ -30,13 +31,6 @@ export const REFRESH_GRACE_MS = 10_000;
 export interface Session {
   accessToken: string;
   refreshToken: string;
-}
-
-export interface Profile {
-  id: string;
-  email: string;
-  displayName: string;
-  emailVerified: boolean;
 }
 
 export interface AccessTokenPayload {

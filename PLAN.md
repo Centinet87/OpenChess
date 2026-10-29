@@ -37,19 +37,20 @@
 
 ```text
 apps/
-  api/                 NestJS: arranque, módulos y gateway de WebSocket
+  api/                 NestJS: arranque, módulos, adaptadores (Prisma, Mercado Pago, Lichess…) y gateway de WebSocket
   web/                 Next.js
 libs/
-  shared/kernel/       Value objects y errores de dominio comunes (ClubId, UserId, Result)
-  shared/contracts/    DTOs y eventos que comparten api y web
+  contracts/           Lo que comparten api y web: esquemas de cada request, respuestas, protocolo del WebSocket y códigos de error
   (identity vive por ahora en apps/api/src/identity: solo la usa la API)
-  clubs/               Clubes, membresías, invitaciones (dominio rico: reglas de roles)
+  clubs/               Clubes, membresías, roles e invitaciones (dominio rico)
   games/               Partidas, reloj, jugadas (dominio rico)
   ratings/             Glicko-2 y tabla de posiciones (dominio rico)
+  linked-accounts/     Lichess, Chess.com, partidas importadas y Elo FIDE
+  billing/             Planes y suscripción
   database/            Esquema Prisma, migraciones, extensión de RLS
 ```
 
-Cada lib con dominio rico se divide en `domain/` (entidades y puertos, sin dependencias de Nest ni Prisma), `application/` (casos de uso) e `infrastructure/` (adaptadores Prisma, controladores, gateways).
+Cada lib de negocio se divide en `domain/` (entidades y reglas, sin dependencias de Nest ni Prisma) y `application/` (casos de uso y los puertos que necesitan). Los adaptadores que implementan esos puertos (Prisma, controladores, gateways) viven en `apps/api`. La referencia de rutas para el front está en `docs/api.md`.
 
 ## Patrones que calzan solos
 

@@ -21,7 +21,7 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AuthGuard } from './auth.guard';
 import { AccountEmailsService } from './account-emails.service';
-import { AccountService, type AccountExport } from './account.service';
+import { AccountService } from './account.service';
 import {
   changePasswordSchema,
   deleteAccountSchema,
@@ -39,8 +39,10 @@ import {
   type TokenInput,
   type UpdateProfileInput,
   updateProfileSchema,
-} from './auth.schemas';
-import { AuthService, type Profile } from './auth.service';
+  type AccountExport,
+  type Profile,
+} from '@openchess/contracts';
+import { AuthService } from './auth.service';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,

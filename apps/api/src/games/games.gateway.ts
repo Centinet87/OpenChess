@@ -7,6 +7,14 @@ import {
   WebSocketServer,
   type OnGatewayInit,
 } from '@nestjs/websockets';
+import {
+  commandSchema,
+  GAME_EVENTS,
+  joinSchema,
+  type CommandMessage,
+  type GameAck,
+  type GameUpdate,
+} from '@openchess/contracts';
 import { GameError, GamesUseCases, type GameSnapshot } from '@openchess/games';
 import { parse as parseCookies } from 'cookie';
 import { ClsService } from 'nestjs-cls';
@@ -18,11 +26,7 @@ import { AuthService } from '../identity/auth.service';
 import { ACCESS_COOKIE } from '../identity/cookies';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 import { GameEventsHub } from './game-events.hub';
-import { toView, type GameView } from './game-view';
-import { commandSchema, joinSchema, type CommandInput } from './games.schemas';
-
-export type Ack =
-  { ok: true; game: GameView } | { ok: false; code: string; message: string };
+import { toView } from './game-view';
 
 interface SocketData {
   userId: string;
@@ -126,10 +130,8 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
         .catch(() => next(new Error('Inicia sesión')));
     });
     this.unsubscribe = this.hub.subscribe((game, events) => {
-      this.server.to(room(game.id)).emit('game:update', {
-        game: toView(game, Date.now()),
-        events,
-      });
+      const update: GameUpdate = { game: toView(game, Date.now()), events };
+      this.server.to(room(game.id)).emit(GAME_EVENTS.update, update);
     });
   }
 
@@ -137,11 +139,11 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
     this.unsubscribe?.();
   }
 
-  @SubscribeMessage('game:join')
+  @SubscribeMessage(GAME_EVENTS.join)
   async join(
     @ConnectedSocket() socket: Socket,
     @MessageBody() body: unknown,
-  ): Promise<Ack> {
+  ): Promise<GameAck> {
     return this.handle(
       socket,
       joinSchema,
@@ -158,11 +160,11 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
     );
   }
 
-  @SubscribeMessage('game:command')
+  @SubscribeMessage(GAME_EVENTS.command)
   async command(
     @ConnectedSocket() socket: Socket,
     @MessageBody() body: unknown,
-  ): Promise<Ack> {
+  ): Promise<GameAck> {
     return this.handle(socket, commandSchema, body, async (cmd, data) => {
       const clubId = data.games.get(cmd.gameId);
       if (!clubId)
@@ -180,7 +182,7 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
     });
   }
 
-  private run(cmd: CommandInput, userId: string): Promise<GameSnapshot> {
+  private run(cmd: CommandMessage, userId: string): Promise<GameSnapshot> {
     if (cmd.action === 'move') {
       const { from, to, promotion } = cmd;
       return this.games.move(cmd.gameId, userId, { from, to, promotion });
@@ -229,7 +231,7 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
     schema: ZodType<T>,
     body: unknown,
     fn: (input: T, data: SocketData) => Promise<GameSnapshot>,
-  ): Promise<Ack> {
+  ): Promise<GameAck> {
     const data = socket.data as SocketData | undefined;
     if (!data?.userId)
       return { ok: false, code: 'UNAUTHORIZED', message: 'Inicia sesión' };

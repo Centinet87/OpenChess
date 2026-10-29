@@ -6,6 +6,11 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type {
+  AccountError,
+  AccountExport,
+  ClubRef,
+} from '@openchess/contracts';
 import {
   createPrismaClient,
   tenantTransaction,
@@ -20,81 +25,15 @@ type Base = ReturnType<typeof createPrismaClient>;
 /** Nombre que queda en las partidas y el historial de los rivales. */
 export const DELETED_NAME = 'Cuenta eliminada';
 
+const LAST_OWNER_MESSAGE =
+  'Eres el único dueño de algunos clubes: nombra a otro dueño antes de eliminar la cuenta';
+
+function conflict(body: AccountError): ConflictException {
+  return new ConflictException({ statusCode: 409, ...body });
+}
+
 /** Suscripciones que todavía cobran o pueden cobrar. */
 const LIVE_SUBSCRIPTION = ['pending', 'active', 'paused'];
-
-interface ClubRef {
-  slug: string;
-  name: string;
-}
-
-/** Lo que la persona descarga con sus datos (derecho de acceso y portabilidad). */
-export interface AccountExport {
-  exportedAt: string;
-  account: {
-    id: string;
-    email: string;
-    displayName: string;
-    emailVerifiedAt: string | null;
-    createdAt: string;
-  };
-  linkedAccounts: {
-    platform: string;
-    username: string;
-    displayName: string;
-    verifiedAt: string | null;
-    ratings: unknown;
-  }[];
-  clubs: {
-    club: ClubRef;
-    role: string;
-    joinedAt: string;
-    rating: {
-      rating: number;
-      deviation: number;
-      games: number;
-      wins: number;
-      draws: number;
-      losses: number;
-    } | null;
-    ratingHistory: {
-      gameId: string;
-      opponent: string;
-      score: number;
-      ratingBefore: number;
-      ratingAfter: number;
-      at: string;
-    }[];
-    fide: {
-      fideId: string;
-      name: string;
-      federation: string | null;
-      title: string | null;
-      ratings: unknown;
-    } | null;
-    games: {
-      id: string;
-      color: 'white' | 'black';
-      opponent: string;
-      status: string;
-      result: string | null;
-      termination: string | null;
-      timeControl: { kind: string; initialMs: number; incrementMs: number };
-      pgn: string;
-      playedAt: string;
-    }[];
-    importedGames: {
-      platform: string;
-      url: string;
-      white: string;
-      black: string;
-      result: string | null;
-      speed: string;
-      pgn: string;
-      playedAt: string;
-    }[];
-  }[];
-}
 
 /**
  * Eliminar la cuenta y descargar los datos propios. Recorre los clubes de la
@@ -277,7 +216,7 @@ export class AccountService {
         },
       });
       if (playing > 0) {
-        throw new ConflictException({
+        throw conflict({
           code: 'GAME_IN_PROGRESS',
           message: 'Termina tus partidas en curso antes de eliminar la cuenta',
         });
@@ -303,15 +242,14 @@ export class AccountService {
       else clubsToDelete.push(m.clubId);
     }
     if (ownerless.length > 0) {
-      throw new ConflictException({
+      throw conflict({
         code: 'LAST_OWNER',
-        message:
-          'Eres el único dueño de algunos clubes: nombra a otro dueño antes de eliminar la cuenta',
+        message: LAST_OWNER_MESSAGE,
         clubs: ownerless,
       });
     }
     if (paying.length > 0) {
-      throw new ConflictException({
+      throw conflict({
         code: 'SUBSCRIPTION_ACTIVE',
         message:
           'Cancela el plan Pro de tus clubes antes de eliminar la cuenta',
@@ -327,10 +265,9 @@ export class AccountService {
       ).catch((error: unknown) => {
         // Otro dueño se fue al mismo tiempo (ver memberships_keep_owner).
         if (!isLastOwnerError(error)) throw error;
-        throw new ConflictException({
+        throw conflict({
           code: 'LAST_OWNER',
-          message:
-            'Eres el único dueño de algunos clubes: nombra a otro dueño antes de eliminar la cuenta',
+          message: LAST_OWNER_MESSAGE,
           clubs: [m.club],
         });
       });

@@ -1,28 +1,7 @@
+import type { GameView } from '@openchess/contracts';
 import { Game, type GameSnapshot } from '@openchess/games';
 
 /** Lo que recibe el cliente: posición, tiempos ya descontados y la hora del servidor. */
-export interface GameView {
-  readonly id: string;
-  readonly status: GameSnapshot['status'];
-  readonly whiteId: string;
-  readonly blackId: string;
-  readonly challengerId: string;
-  readonly timeControl: GameSnapshot['timeControl'];
-  readonly fen: string;
-  readonly pgn: string;
-  readonly clock: {
-    readonly whiteMs: number;
-    readonly blackMs: number;
-    readonly running: GameSnapshot['clock']['running'];
-  };
-  /** Hasta cuándo (epoch ms del servidor) tienen las blancas para la primera jugada. */
-  readonly firstMoveBy: number | null;
-  readonly drawOfferBy: GameSnapshot['drawOfferBy'];
-  readonly result: GameSnapshot['result'];
-  readonly termination: GameSnapshot['termination'];
-  /** El cliente la usa para corregir el desfase con su reloj local. */
-  readonly serverNow: number;
-}
 
 export function toView(s: GameSnapshot, now: number): GameView {
   const game = Game.restore(s);

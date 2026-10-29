@@ -4,6 +4,7 @@ import {
   type ArgumentsHost,
   type ExceptionFilter,
 } from '@nestjs/common';
+import type { ApiError } from '@openchess/contracts';
 import { GameError, type GameErrorCode } from '@openchess/games';
 import type { Response } from 'express';
 
@@ -34,6 +35,10 @@ export class GameErrorFilter implements ExceptionFilter<GameError> {
       .switchToHttp()
       .getResponse<Response>()
       .status(status)
-      .json({ statusCode: status, code: error.code, message: error.message });
+      .json({
+        statusCode: status,
+        code: error.code,
+        message: error.message,
+      } satisfies ApiError);
   }
 }
