@@ -11,6 +11,7 @@ import type {
   PlatformProfile,
 } from '@openchess/linked-accounts';
 import { AppModule } from '../app/app.module';
+import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import { ACCESS_COOKIE } from '../identity/cookies';
 import { RatingsListener } from '../ratings/ratings.listener';
@@ -146,13 +147,11 @@ beforeAll(async () => {
       base.club.create({ data: { slug, name: slug } }),
     ),
   );
-  await base.membership.createMany({
-    data: [
-      { clubId: clubA.id, userId: users.ana.id, role: 'OWNER' },
-      { clubId: clubA.id, userId: users.beto.id, role: 'STUDENT' },
-      { clubId: clubB.id, userId: users.caro.id, role: 'OWNER' },
-    ],
-  });
+  await seedMembers(base, [
+    { clubId: clubA.id, userId: users.ana.id, role: 'Admin' },
+    { clubId: clubA.id, userId: users.beto.id, role: 'Alumno' },
+    { clubId: clubB.id, userId: users.caro.id, role: 'Admin' },
+  ]);
 });
 
 afterAll(async () => {

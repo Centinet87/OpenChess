@@ -20,6 +20,11 @@ let clubA: string;
 let clubB: string;
 let userA: string;
 let userB: string;
+/** Un rol dueño y uno de alumno por club. */
+const roles = {} as Record<
+  'ownerA' | 'studentA' | 'ownerB' | 'studentB',
+  string
+>;
 
 beforeAll(async () => {
   const [ua, ub] = await Promise.all(
@@ -45,10 +50,30 @@ beforeAll(async () => {
   clubA = ca.id;
   clubB = cb.id;
 
+  for (const [club, owner, student] of [
+    [clubA, 'ownerA', 'studentA'],
+    [clubB, 'ownerB', 'studentB'],
+  ] as const) {
+    roles[owner] = randomUUID();
+    roles[student] = randomUUID();
+    await base.clubRole.createMany({
+      data: [
+        {
+          id: roles[owner],
+          clubId: club,
+          name: 'Admin',
+          position: 0,
+          isOwner: true,
+        },
+        { id: roles[student], clubId: club, name: 'Alumno', position: 1 },
+      ],
+    });
+  }
+
   await base.membership.createMany({
     data: [
-      { clubId: clubA, userId: userA, role: 'OWNER' },
-      { clubId: clubB, userId: userB, role: 'OWNER' },
+      { clubId: clubA, userId: userA, roleId: roles.ownerA },
+      { clubId: clubB, userId: userB, roleId: roles.ownerB },
     ],
   });
   const expiresAt = new Date(Date.now() + 60_000);
@@ -57,14 +82,14 @@ beforeAll(async () => {
       {
         clubId: clubA,
         tokenHash: `a-${suffix}`,
-        role: 'STUDENT',
+        roleId: roles.studentA,
         createdById: userA,
         expiresAt,
       },
       {
         clubId: clubB,
         tokenHash: `b-${suffix}`,
-        role: 'STUDENT',
+        roleId: roles.studentB,
         createdById: userB,
         expiresAt,
       },
@@ -96,7 +121,7 @@ describe('RLS entre clubes', () => {
     context = { clubId: clubA, userId: userA };
     await expect(
       db.membership.create({
-        data: { clubId: clubB, userId: userA, role: 'OWNER' },
+        data: { clubId: clubB, userId: userA, roleId: roles.ownerB },
       }),
     ).rejects.toThrow();
   });
@@ -105,7 +130,7 @@ describe('RLS entre clubes', () => {
     context = { clubId: clubA, userId: userA };
     const updated = await db.invitation.updateMany({
       where: { clubId: clubB },
-      data: { role: 'OWNER' },
+      data: { roleId: roles.ownerB },
     });
     const deleted = await db.membership.deleteMany({
       where: { clubId: clubB },
@@ -216,6 +241,31 @@ describe('RLS en cuentas vinculadas', () => {
         where: { userId_platform: { userId: userA, platform: 'LICHESS' } },
         data: { username: name, verifiedAt: new Date() },
       }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('RLS en roles', () => {
+  it('en el club A solo se ven sus roles, y no se crean roles en el club B', async () => {
+    context = { clubId: clubA, userId: userA };
+    const rows = await db.clubRole.findMany();
+    expect(new Set(rows.map((r) => r.clubId))).toEqual(new Set([clubA]));
+    await expect(
+      db.clubRole.create({
+        data: { id: randomUUID(), clubId: clubB, name: 'X', position: 9 },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('fuera de un club, cada uno ve solo el rol que tiene en cada club', async () => {
+    context = { userId: userA };
+    const rows = await db.clubRole.findMany();
+    expect(rows.map((r) => r.id)).toEqual([roles.ownerA]);
+  });
+
+  it('no se borra un rol que tiene miembros', async () => {
+    await expect(
+      base.clubRole.delete({ where: { id: roles.ownerA } }),
     ).rejects.toThrow();
   });
 });

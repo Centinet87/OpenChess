@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ClubsUseCases } from '@openchess/clubs';
@@ -9,12 +10,18 @@ import {
   AcceptInvitationController,
   ClubController,
   ClubsController,
+  RolesController,
 } from './clubs.controller';
 import { PrismaClubsRepository } from './prisma-clubs.repository';
 
 @Module({
   imports: [IdentityModule],
-  controllers: [ClubsController, ClubController, AcceptInvitationController],
+  controllers: [
+    ClubsController,
+    ClubController,
+    RolesController,
+    AcceptInvitationController,
+  ],
   providers: [
     PrismaClubsRepository,
     ClubMemberGuard,
@@ -23,18 +30,20 @@ import { PrismaClubsRepository } from './prisma-clubs.repository';
       provide: ClubsUseCases,
       inject: [PrismaClubsRepository],
       useFactory: (repo: PrismaClubsRepository) =>
-        new ClubsUseCases(
-          repo,
-          repo,
-          {
+        new ClubsUseCases({
+          clubs: repo,
+          roles: repo,
+          invitations: repo,
+          tokens: {
             issue: () => {
               const token = generateOpaqueToken();
               return { token, hash: sha256(token) };
             },
             hash: sha256,
           },
-          { now: () => new Date() },
-        ),
+          clock: { now: () => new Date() },
+          newId: randomUUID,
+        }),
     },
   ],
 })

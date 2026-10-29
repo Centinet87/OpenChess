@@ -1,60 +1,138 @@
 import { newClub } from '../domain/club.js';
 import { ClubError } from '../domain/errors.js';
 import { assertAcceptable, invitationExpiry } from '../domain/invitation.js';
-import { assertCanInvite, Roster, type MemberRole } from '../domain/roster.js';
-import type {
-  Clock,
-  ClubsRepository,
-  InvitationsRepository,
-  MemberView,
-  MyClub,
-  TokenIssuer,
-} from './ports.js';
+import { RoleBook } from '../domain/role-book.js';
+import { defaultRoles, type ClubRole, type RoleInput } from '../domain/role.js';
+import { Roster } from '../domain/roster.js';
+import type { ClubsDeps, MemberView, MyClub, RoleSummary } from './ports.js';
+
+function summary(role: ClubRole): RoleSummary {
+  return {
+    id: role.id,
+    name: role.name,
+    color: role.color,
+    position: role.position,
+    isOwner: role.isOwner,
+  };
+}
 
 export class ClubsUseCases {
-  constructor(
-    private readonly clubs: ClubsRepository,
-    private readonly invitations: InvitationsRepository,
-    private readonly tokens: TokenIssuer,
-    private readonly clock: Clock,
-  ) {}
+  constructor(private readonly deps: ClubsDeps) {}
 
+  /** Quien crea el club queda con el rol dueño. El club parte con Admin, Profesor y Alumno. */
   async createClub(
     userId: string,
     input: { slug: string; name: string },
   ): Promise<{ id: string; slug: string }> {
     const club = newClub(input);
-    if (await this.clubs.slugExists(club.slug)) {
+    if (await this.deps.clubs.slugExists(club.slug)) {
       throw new ClubError('SLUG_TAKEN', 'Ese subdominio ya está ocupado');
     }
-    const { id } = await this.clubs.createWithOwner(club, userId);
+    const id = this.deps.newId();
+    await this.deps.clubs.createWithOwner(
+      { id, ...club },
+      defaultRoles(id, this.deps.newId),
+      userId,
+    );
     return { id, slug: club.slug };
   }
 
   listMyClubs(userId: string): Promise<MyClub[]> {
-    return this.clubs.listForUser(userId);
+    return this.deps.clubs.listForUser(userId);
   }
 
-  listMembers(clubId: string): Promise<MemberView[]> {
-    return this.clubs.members(clubId);
+  /** Miembros ordenados por la jerarquía de su rol y luego por nombre. */
+  async listMembers(clubId: string): Promise<MemberView[]> {
+    const [rows, roles] = await Promise.all([
+      this.deps.clubs.members(clubId),
+      this.book(clubId),
+    ]);
+    return rows
+      .map((m) => ({
+        userId: m.userId,
+        displayName: m.displayName,
+        role: summary(roles.require(m.roleId)),
+      }))
+      .sort(
+        (a, b) =>
+          a.role.position - b.role.position ||
+          a.displayName.localeCompare(b.displayName),
+      );
+  }
+
+  async listRoles(clubId: string): Promise<readonly ClubRole[]> {
+    return (await this.book(clubId)).all;
+  }
+
+  /** Mi rol en el club, con sus permisos: el front lo usa para saber qué mostrar. */
+  async myRole(clubId: string, userId: string): Promise<ClubRole> {
+    return (await this.roster(clubId)).roleOf(userId);
+  }
+
+  async createRole(
+    clubId: string,
+    actorId: string,
+    input: RoleInput,
+  ): Promise<ClubRole> {
+    const roster = await this.roster(clubId);
+    const actor = roster.requirePermission(actorId, 'MANAGE_ROLES');
+    const { role } = roster.roles.create(actor, input, this.deps.newId());
+    await this.deps.roles.saveRoles([role]);
+    return role;
+  }
+
+  async updateRole(
+    clubId: string,
+    actorId: string,
+    roleId: string,
+    input: Partial<RoleInput>,
+  ): Promise<ClubRole> {
+    const roster = await this.roster(clubId);
+    const actor = roster.requirePermission(actorId, 'MANAGE_ROLES');
+    const { role } = roster.roles.update(actor, roleId, input);
+    await this.deps.roles.saveRoles([role]);
+    return role;
+  }
+
+  async deleteRole(
+    clubId: string,
+    actorId: string,
+    roleId: string,
+  ): Promise<void> {
+    const roster = await this.roster(clubId);
+    const actor = roster.requirePermission(actorId, 'MANAGE_ROLES');
+    const book = roster.roles.remove(actor, roleId, roster.isRoleInUse(roleId));
+    await this.deps.roles.deleteRole(clubId, roleId);
+    // Las posiciones quedan sin huecos.
+    await this.deps.roles.saveRoles(book.all);
+  }
+
+  async reorderRoles(
+    clubId: string,
+    actorId: string,
+    roleIds: readonly string[],
+  ): Promise<readonly ClubRole[]> {
+    const roster = await this.roster(clubId);
+    const actor = roster.requirePermission(actorId, 'MANAGE_ROLES');
+    const book = roster.roles.reorder(actor, roleIds);
+    await this.deps.roles.saveRoles(book.all);
+    return book.all;
   }
 
   async invite(
     clubId: string,
     inviterId: string,
-    role: MemberRole,
+    roleId: string,
   ): Promise<{ token: string; expiresAt: Date }> {
-    const inviter = await this.clubs.findMember(clubId, inviterId);
-    if (!inviter)
-      throw new ClubError('FORBIDDEN', 'No eres miembro de este club');
-    assertCanInvite(inviter, role);
+    const roster = await this.roster(clubId);
+    roster.assertCanInvite(inviterId, roleId);
 
-    const { token, hash } = this.tokens.issue();
-    const expiresAt = invitationExpiry(this.clock.now());
-    await this.invitations.create({
+    const { token, hash } = this.deps.tokens.issue();
+    const expiresAt = invitationExpiry(this.deps.clock.now());
+    await this.deps.invitations.create({
       clubId,
       tokenHash: hash,
-      role,
+      roleId,
       createdById: inviterId,
       expiresAt,
     });
@@ -65,34 +143,38 @@ export class ClubsUseCases {
     clubId: string,
     userId: string,
     token: string,
-  ): Promise<{ role: MemberRole }> {
-    const invitation = await this.invitations.findByTokenHash(
-      this.tokens.hash(token),
+  ): Promise<{ role: RoleSummary }> {
+    const invitation = await this.deps.invitations.findByTokenHash(
+      this.deps.tokens.hash(token),
     );
     // El repositorio ve solo las del club actual; el chequeo extra no cuesta nada.
     if (!invitation || invitation.clubId !== clubId) {
       throw new ClubError('INVITATION_NOT_FOUND', 'Invitación no encontrada');
     }
-    const now = this.clock.now();
-    const existing = await this.clubs.findMember(clubId, userId);
+    const now = this.deps.clock.now();
+    const existing = await this.deps.clubs.findMember(clubId, userId);
     assertAcceptable(invitation, now, existing !== null);
 
-    if (!(await this.invitations.markAccepted(invitation.id, now))) {
+    if (!(await this.deps.invitations.markAccepted(invitation.id, now))) {
       throw new ClubError('INVITATION_USED', 'Esta invitación ya se usó');
     }
-    await this.clubs.addMember(clubId, { userId, role: invitation.role });
-    return { role: invitation.role };
+    await this.deps.clubs.addMember(clubId, {
+      userId,
+      roleId: invitation.roleId,
+    });
+    const role = (await this.book(clubId)).require(invitation.roleId);
+    return { role: summary(role) };
   }
 
-  async changeRole(
+  async changeMemberRole(
     clubId: string,
     actorId: string,
     targetId: string,
-    role: MemberRole,
+    roleId: string,
   ): Promise<void> {
-    const roster = Roster.of(await this.clubs.members(clubId));
-    roster.changeRole(actorId, targetId, role);
-    await this.clubs.updateRole(clubId, targetId, role);
+    const roster = await this.roster(clubId);
+    roster.changeRole(actorId, targetId, roleId);
+    await this.deps.clubs.updateRole(clubId, targetId, roleId);
   }
 
   async removeMember(
@@ -100,8 +182,20 @@ export class ClubsUseCases {
     actorId: string,
     targetId: string,
   ): Promise<void> {
-    const roster = Roster.of(await this.clubs.members(clubId));
+    const roster = await this.roster(clubId);
     roster.remove(actorId, targetId);
-    await this.clubs.removeMember(clubId, targetId);
+    await this.deps.clubs.removeMember(clubId, targetId);
+  }
+
+  private async book(clubId: string): Promise<RoleBook> {
+    return RoleBook.of(await this.deps.roles.roles(clubId));
+  }
+
+  private async roster(clubId: string): Promise<Roster> {
+    const [members, roles] = await Promise.all([
+      this.deps.clubs.members(clubId),
+      this.book(clubId),
+    ]);
+    return Roster.of(members, roles);
   }
 }

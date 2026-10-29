@@ -128,8 +128,17 @@ export class PrismaGamesRepository
     return rows.map(toSnapshot);
   }
 
+  /** Miembro del club cuyo rol puede jugar (permiso PLAY_GAMES). */
   async isMember(clubId: string, userId: string): Promise<boolean> {
-    const count = await this.db.membership.count({ where: { clubId, userId } });
+    const count = await this.db.membership.count({
+      where: {
+        clubId,
+        userId,
+        role: {
+          OR: [{ isOwner: true }, { permissions: { has: 'PLAY_GAMES' } }],
+        },
+      },
+    });
     return count === 1;
   }
 }

@@ -9,9 +9,18 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
-import { ClubsUseCases, type MemberView, type MyClub } from '@openchess/clubs';
+import {
+  ClubsUseCases,
+  PERMISSIONS,
+  type ClubRole,
+  type MemberView,
+  type MyClub,
+  type Permission,
+  type RoleSummary,
+} from '@openchess/clubs';
 import { ClsService } from 'nestjs-cls';
 import { ZodPipe } from '../common/zod.pipe';
 import { AuthGuard } from '../identity/auth.guard';
@@ -20,10 +29,16 @@ import {
   acceptInvitationSchema,
   changeRoleSchema,
   createClubSchema,
+  createRoleSchema,
   inviteSchema,
+  reorderRolesSchema,
+  updateRoleSchema,
   type AcceptInvitationInput,
   type CreateClubInput,
-  type RoleInput,
+  type CreateRoleInput,
+  type ReorderRolesInput,
+  type RoleIdInput,
+  type UpdateRoleInput,
 } from './clubs.schemas';
 
 /** Dominio raíz: crear clubes y listar los míos. */
@@ -62,17 +77,23 @@ export class ClubController {
     return this.clubs.listMembers(this.cls.get('clubId'));
   }
 
+  /** Mi rol y mis permisos en este club: el front lo usa para saber qué mostrar. */
+  @Get('me')
+  me(): Promise<ClubRole> {
+    return this.clubs.myRole(this.cls.get('clubId'), this.cls.get('userId'));
+  }
+
   @Patch('members/:userId')
   @HttpCode(204)
   changeRole(
     @Param('userId', ParseUUIDPipe) userId: string,
-    @Body(new ZodPipe(changeRoleSchema)) body: RoleInput,
+    @Body(new ZodPipe(changeRoleSchema)) body: RoleIdInput,
   ): Promise<void> {
-    return this.clubs.changeRole(
+    return this.clubs.changeMemberRole(
       this.cls.get('clubId'),
       this.cls.get('userId'),
       userId,
-      body.role,
+      body.roleId,
     );
   }
 
@@ -88,12 +109,82 @@ export class ClubController {
 
   @Post('invitations')
   invite(
-    @Body(new ZodPipe(inviteSchema)) body: RoleInput,
+    @Body(new ZodPipe(inviteSchema)) body: RoleIdInput,
   ): Promise<{ token: string; expiresAt: Date }> {
     return this.clubs.invite(
       this.cls.get('clubId'),
       this.cls.get('userId'),
-      body.role,
+      body.roleId,
+    );
+  }
+}
+
+/**
+ * Roles del club: cada club crea los suyos, con permisos, orden y color. Las
+ * reglas (permiso MANAGE_ROLES, jerarquía) las aplica el dominio.
+ */
+@Controller('club/roles')
+@UseGuards(AuthGuard, ClubMemberGuard)
+export class RolesController {
+  constructor(
+    private readonly clubs: ClubsUseCases,
+    private readonly cls: ClsService,
+  ) {}
+
+  @Get()
+  list(): Promise<readonly ClubRole[]> {
+    return this.clubs.listRoles(this.cls.get('clubId'));
+  }
+
+  /** Los permisos que se pueden marcar en un rol. */
+  @Get('permissions')
+  permissions(): readonly Permission[] {
+    return PERMISSIONS;
+  }
+
+  @Post()
+  create(
+    @Body(new ZodPipe(createRoleSchema)) body: CreateRoleInput,
+  ): Promise<ClubRole> {
+    return this.clubs.createRole(
+      this.cls.get('clubId'),
+      this.cls.get('userId'),
+      body,
+    );
+  }
+
+  /** Orden nuevo de la jerarquía, de arriba abajo, sin el rol dueño. */
+  @Put('order')
+  reorder(
+    @Body(new ZodPipe(reorderRolesSchema)) body: ReorderRolesInput,
+  ): Promise<readonly ClubRole[]> {
+    return this.clubs.reorderRoles(
+      this.cls.get('clubId'),
+      this.cls.get('userId'),
+      body.roleIds,
+    );
+  }
+
+  @Patch(':roleId')
+  update(
+    @Param('roleId', ParseUUIDPipe) roleId: string,
+    @Body(new ZodPipe(updateRoleSchema)) body: UpdateRoleInput,
+  ): Promise<ClubRole> {
+    return this.clubs.updateRole(
+      this.cls.get('clubId'),
+      this.cls.get('userId'),
+      roleId,
+      body,
+    );
+  }
+
+  @Delete(':roleId')
+  @HttpCode(204)
+  remove(@Param('roleId', ParseUUIDPipe) roleId: string): Promise<void> {
+    return this.clubs.deleteRole(
+      this.cls.get('clubId'),
+      this.cls.get('userId'),
+      roleId,
     );
   }
 }
@@ -111,7 +202,7 @@ export class AcceptInvitationController {
   @HttpCode(200)
   accept(
     @Body(new ZodPipe(acceptInvitationSchema)) body: AcceptInvitationInput,
-  ): Promise<{ role: string }> {
+  ): Promise<{ role: RoleSummary }> {
     const clubId = this.cls.get<string | undefined>('requestedClubId');
     if (!clubId) throw new NotFoundException('Club no encontrado');
     // Única ruta que abre el contexto del club sin ser miembro: el token es la autorización,

@@ -5,24 +5,27 @@ import type { FideDeps } from './ports.js';
 /** Los Elo FIDE cambian una vez al mes: se vuelven a pedir, como mucho, una vez al día. */
 const FIDE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
-/** Quién puede asignar FIDE ID. Los roles vienen de memberships. */
-export type ClubRole = 'OWNER' | 'COACH' | 'STUDENT';
+/** Quien asigna un FIDE ID: su id y si su rol en el club tiene el permiso MANAGE_FIDE. */
+export interface FideAdmin {
+  readonly userId: string;
+  readonly canManage: boolean;
+}
 
 /**
  * FIDE ID de los miembros de un club. FIDE no tiene login, así que no hay forma
- * de que la persona pruebe que es suyo: lo agrega un admin del club, que la
- * conoce, y solo vale dentro de ese club.
+ * de que la persona pruebe que es suyo: lo agrega alguien del club con el
+ * permiso MANAGE_FIDE, que la conoce, y solo vale dentro de ese club.
  */
 export class FideUseCases {
   constructor(private readonly deps: FideDeps) {}
 
   async link(
     clubId: string,
-    admin: { userId: string; role: ClubRole },
+    admin: FideAdmin,
     memberId: string,
     fideId: string,
   ): Promise<FideLinkSnapshot> {
-    assertAdmin(admin.role);
+    assertCanManage(admin);
     const id = normalizeFideId(fideId);
     if (!(await this.deps.links.isMember(clubId, memberId))) {
       throw new LinkError('NOT_MEMBER', 'No es miembro de este club');
@@ -49,10 +52,10 @@ export class FideUseCases {
 
   async unlink(
     clubId: string,
-    admin: { role: ClubRole },
+    admin: Pick<FideAdmin, 'canManage'>,
     memberId: string,
   ): Promise<void> {
-    assertAdmin(admin.role);
+    assertCanManage(admin);
     await this.deps.links.delete(clubId, memberId);
   }
 
@@ -84,11 +87,11 @@ export class FideUseCases {
   }
 }
 
-function assertAdmin(role: ClubRole): void {
-  if (role !== 'OWNER') {
+function assertCanManage(admin: Pick<FideAdmin, 'canManage'>): void {
+  if (!admin.canManage) {
     throw new LinkError(
       'FORBIDDEN',
-      'Solo un admin del club puede asignar el FIDE ID',
+      'Tu rol no tiene permiso para asignar el FIDE ID',
     );
   }
 }

@@ -26,7 +26,9 @@ import {
 } from '@openchess/linked-accounts';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
+import { hasPermission } from '@openchess/clubs';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
+import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
@@ -55,7 +57,7 @@ export const LICHESS_OAUTH = Symbol('LICHESS_OAUTH');
 
 // Cada uno pega en la plataforma externa: no más de 5 por minuto.
 const EXTERNAL = { default: { limit: 5, ttl: 60_000 } };
-// Un admin puede asignar el FIDE ID de toda una academia de una vez.
+// Quien gestiona FIDE puede asignar el de toda una academia de una vez.
 const FIDE_ADMIN = { default: { limit: 30, ttl: 60_000 } };
 
 /** Vincular las cuentas propias de Lichess y Chess.com. Vale en el dominio raíz. */
@@ -195,7 +197,7 @@ export class LichessOAuthController {
 
 /** Dentro de un club: cuentas de los miembros y partidas importadas. */
 @Controller('club')
-@UseGuards(AuthGuard, ClubMemberGuard)
+@UseGuards(AuthGuard, ClubMemberGuard, PermissionGuard)
 export class ClubLinkedAccountsController {
   constructor(
     private readonly accounts: LinkedAccountsUseCases,
@@ -214,6 +216,7 @@ export class ClubLinkedAccountsController {
   /** Trae al club mis partidas recientes de la plataforma. */
   @Post('imports')
   @Throttle(EXTERNAL)
+  @RequirePermission('IMPORT_GAMES')
   importGames(
     @Body(new ZodPipe(importSchema)) body: { platform: Platform },
   ): Promise<ImportSummary> {
@@ -246,8 +249,9 @@ export class ClubLinkedAccountsController {
 }
 
 /**
- * Elo FIDE de los miembros. Lo asigna un admin del club (FIDE no tiene login para
- * que la persona pruebe que el FIDE ID es suyo); cualquier miembro lo puede ver.
+ * Elo FIDE de los miembros. Lo asigna quien tiene el permiso MANAGE_FIDE (FIDE no
+ * tiene login para que la persona pruebe que el FIDE ID es suyo); cualquier
+ * miembro lo puede ver.
  */
 @Controller('club/fide')
 @UseGuards(AuthGuard, ClubMemberGuard)
@@ -278,7 +282,10 @@ export class FideController {
     return toFideView(
       await this.fide.link(
         this.cls.get('clubId'),
-        { userId: this.cls.get('userId'), role: this.cls.get('role') },
+        {
+          userId: this.cls.get('userId'),
+          canManage: hasPermission(this.cls.get('role'), 'MANAGE_FIDE'),
+        },
         userId,
         body.fideId,
       ),
@@ -299,7 +306,7 @@ export class FideController {
   async unlink(@Param('userId', ParseUUIDPipe) userId: string): Promise<void> {
     await this.fide.unlink(
       this.cls.get('clubId'),
-      { role: this.cls.get('role') },
+      { canManage: hasPermission(this.cls.get('role'), 'MANAGE_FIDE') },
       userId,
     );
   }

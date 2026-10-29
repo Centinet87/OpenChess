@@ -18,6 +18,9 @@ const STATUS: Record<ClubErrorCode, HttpStatus> = {
   INVITATION_NOT_FOUND: HttpStatus.NOT_FOUND,
   INVITATION_EXPIRED: HttpStatus.GONE,
   INVITATION_USED: HttpStatus.CONFLICT,
+  ROLE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  INVALID_ROLE: HttpStatus.BAD_REQUEST,
+  ROLE_IN_USE: HttpStatus.CONFLICT,
 };
 
 /** Traduce las reglas rotas del dominio a respuestas HTTP con su código. */

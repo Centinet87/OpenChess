@@ -13,14 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum MemberRole {
-  OWNER
-  COACH
-  STUDENT
-
-  @@map("member_role")
-}
-
 /// Cuenta global: una persona puede ser miembro de varios clubes.
 model User {
   id              String    @id @default(uuid()) @db.Uuid
@@ -59,38 +51,67 @@ model Club {
   ratingChanges RatingChange[]
   importedGames ImportedGame[]
   fideLinks     FideLink[]
+  roles         ClubRole[]
 
   @@map("clubs")
 }
 
-model Membership {
-  id        String     @id @default(uuid()) @db.Uuid
-  clubId    String     @map("club_id") @db.Uuid
-  userId    String     @map("user_id") @db.Uuid
-  role      MemberRole
-  createdAt DateTime   @default(now()) @map("created_at")
+/// Rol de un club (ver libs/clubs). Cada club define los suyos, con permisos,
+/// orden y color. Parte con Admin (dueño), Profesor y Alumno.
+model ClubRole {
+  id          String   @id @db.Uuid
+  clubId      String   @map("club_id") @db.Uuid
+  name        String
+  color       String?
+  /// 0 es el más alto de la jerarquía.
+  position    Int
+  /// Rol dueño: todos los permisos, no se borra y el club siempre tiene alguien con él.
+  isOwner     Boolean  @default(false) @map("is_owner")
+  permissions String[]
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@unique([clubId, name])
+  @@index([clubId, position])
+  @@map("club_roles")
+}
+
+model Membership {
+  id        String   @id @default(uuid()) @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  club Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Restrict: un rol con miembros no se borra (también lo exige el dominio).
+  role ClubRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@unique([clubId, userId])
   @@index([userId])
+  @@index([roleId])
   @@map("memberships")
 }
 
 /// Link de invitación. Se guarda el SHA-256 del token, nunca el token.
 model Invitation {
-  id          String     @id @default(uuid()) @db.Uuid
-  clubId      String     @map("club_id") @db.Uuid
-  tokenHash   String     @unique @map("token_hash")
-  role        MemberRole
-  createdById String     @map("created_by_id") @db.Uuid
-  expiresAt   DateTime   @map("expires_at")
-  acceptedAt  DateTime?  @map("accepted_at")
-  createdAt   DateTime   @default(now()) @map("created_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  clubId      String    @map("club_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  roleId      String    @map("role_id") @db.Uuid
+  createdById String    @map("created_by_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
-  club      Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  // Si se borra el rol, sus invitaciones pendientes dejan de servir.
+  role      ClubRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@index([clubId])
   @@map("invitations")

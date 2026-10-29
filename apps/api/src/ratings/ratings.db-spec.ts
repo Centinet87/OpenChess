@@ -9,6 +9,7 @@ import { createPrismaClient } from '@openchess/database';
 import { RatingsUseCases } from '@openchess/ratings';
 import { ClsService } from 'nestjs-cls';
 import { AppModule } from '../app/app.module';
+import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import type { Ack } from '../games/games.gateway';
 import { ACCESS_COOKIE } from '../identity/cookies';
@@ -126,13 +127,11 @@ beforeAll(async () => {
     ),
   );
   clubAId = clubA.id;
-  await base.membership.createMany({
-    data: [
-      { clubId: clubA.id, userId: users.ana.id, role: 'OWNER' },
-      { clubId: clubA.id, userId: users.beto.id, role: 'STUDENT' },
-      { clubId: clubB.id, userId: users.caro.id, role: 'OWNER' },
-    ],
-  });
+  await seedMembers(base, [
+    { clubId: clubA.id, userId: users.ana.id, role: 'Admin' },
+    { clubId: clubA.id, userId: users.beto.id, role: 'Alumno' },
+    { clubId: clubB.id, userId: users.caro.id, role: 'Admin' },
+  ]);
 });
 
 afterAll(async () => {

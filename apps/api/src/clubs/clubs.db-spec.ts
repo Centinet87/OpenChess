@@ -33,6 +33,7 @@ function as(user: TestUser, slug?: string) {
     get: (path: string) => withAuth(agent.get(`/api${path}`)),
     post: (path: string) => withAuth(agent.post(`/api${path}`)),
     patch: (path: string) => withAuth(agent.patch(`/api${path}`)),
+    put: (path: string) => withAuth(agent.put(`/api${path}`)),
     delete: (path: string) => withAuth(agent.delete(`/api${path}`)),
   };
 }
@@ -67,10 +68,13 @@ afterAll(async () => {
   await app.close();
 });
 
+/** Ids de los roles del club A, por nombre. */
+const rolesA: Record<string, string> = {};
+
 describe('clubes', () => {
   let invitationToken: string;
 
-  it('crear un club deja al creador como OWNER', async () => {
+  it('crear un club deja al creador como Admin, con los roles iniciales', async () => {
     await as(users.ana)
       .post('/clubs')
       .send({ slug: slugA, name: 'Club A' })
@@ -90,8 +94,21 @@ describe('clubes', () => {
 
     const mine = await as(users.ana).get('/clubs/mine').expect(200);
     expect(mine.body).toEqual([
-      expect.objectContaining({ slug: slugA, role: 'OWNER' }),
+      expect.objectContaining({
+        slug: slugA,
+        role: expect.objectContaining({ name: 'Admin', isOwner: true }),
+      }),
     ]);
+
+    const roles = await as(users.ana, slugA).get('/club/roles').expect(200);
+    expect(roles.body.map((r: { name: string }) => r.name)).toEqual([
+      'Admin',
+      'Profesor',
+      'Alumno',
+    ]);
+    for (const r of roles.body as { id: string; name: string }[]) {
+      rolesA[r.name] = r.id;
+    }
   });
 
   it('solo los miembros ven el club, y un subdominio inexistente da 404', async () => {
@@ -99,7 +116,7 @@ describe('clubes', () => {
     expect(res.body).toEqual([
       expect.objectContaining({
         userId: users.ana.id,
-        role: 'OWNER',
+        role: expect.objectContaining({ name: 'Admin' }),
         displayName: 'ana',
       }),
     ]);
@@ -118,7 +135,7 @@ describe('clubes', () => {
   it('un token de invitación del club A no sirve en el club B', async () => {
     const res = await as(users.ana, slugA)
       .post('/club/invitations')
-      .send({ role: 'COACH' })
+      .send({ roleId: rolesA['Profesor'] })
       .expect(201);
     invitationToken = res.body.token;
 
@@ -133,7 +150,7 @@ describe('clubes', () => {
       .post('/club/invitations/accept')
       .send({ token: invitationToken })
       .expect(200);
-    expect(res.body).toEqual({ role: 'COACH' });
+    expect(res.body.role).toMatchObject({ name: 'Profesor' });
 
     await as(users.beto, slugA)
       .post('/club/invitations/accept')
@@ -141,35 +158,131 @@ describe('clubes', () => {
       .expect(409);
   });
 
-  it('un COACH invita alumnos pero no profesores, ni cambia roles', async () => {
+  it('un Profesor invita alumnos pero no profesores, ni cambia roles ni crea roles', async () => {
     await as(users.caro, slugA)
       .post('/club/invitations')
-      .send({ role: 'STUDENT' })
+      .send({ roleId: rolesA['Alumno'] })
       .expect(201);
     await as(users.caro, slugA)
       .post('/club/invitations')
-      .send({ role: 'COACH' })
+      .send({ roleId: rolesA['Profesor'] })
       .expect(403);
     await as(users.caro, slugA)
       .patch(`/club/members/${users.ana.id}`)
-      .send({ role: 'STUDENT' })
+      .send({ roleId: rolesA['Alumno'] })
+      .expect(403);
+    await as(users.caro, slugA)
+      .post('/club/roles')
+      .send({ name: 'Jefe', permissions: ['MANAGE_ROLES'] })
+      .expect(403);
+
+    const me = await as(users.caro, slugA).get('/club/me').expect(200);
+    expect(me.body).toMatchObject({
+      name: 'Profesor',
+      isOwner: false,
+      permissions: ['INVITE_MEMBERS', 'PLAY_GAMES', 'IMPORT_GAMES'],
+    });
+  });
+
+  it('el admin crea un rango "Miembro del club", lo ordena en la jerarquía y se lo asigna a alguien', async () => {
+    const created = await as(users.ana, slugA)
+      .post('/club/roles')
+      .send({
+        name: 'Miembro del club',
+        color: '#27AE60',
+        permissions: ['PLAY_GAMES'],
+      })
+      .expect(201);
+    expect(created.body).toMatchObject({
+      name: 'Miembro del club',
+      color: '#27ae60',
+      position: 3,
+      permissions: ['PLAY_GAMES'],
+    });
+    rolesA['Miembro del club'] = created.body.id;
+
+    const ordered = await as(users.ana, slugA)
+      .put('/club/roles/order')
+      .send({
+        roleIds: [
+          rolesA['Profesor'],
+          rolesA['Miembro del club'],
+          rolesA['Alumno'],
+        ],
+      })
+      .expect(200);
+    expect(ordered.body.map((r: { name: string }) => r.name)).toEqual([
+      'Admin',
+      'Profesor',
+      'Miembro del club',
+      'Alumno',
+    ]);
+
+    await as(users.ana, slugA)
+      .patch(`/club/members/${users.caro.id}`)
+      .send({ roleId: rolesA['Miembro del club'] })
+      .expect(204);
+    const members = await as(users.ana, slugA).get('/club/members').expect(200);
+    expect(
+      members.body.map((m: { role: { name: string } }) => m.role.name),
+    ).toEqual(['Admin', 'Miembro del club']);
+
+    // Ese rol ya no puede invitar.
+    await as(users.caro, slugA)
+      .post('/club/invitations')
+      .send({ roleId: rolesA['Alumno'] })
       .expect(403);
   });
 
-  it('el club no se queda sin OWNER', async () => {
+  it('un rol con miembros no se borra; uno sin miembros sí', async () => {
+    const inUse = await as(users.ana, slugA)
+      .delete(`/club/roles/${rolesA['Miembro del club']}`)
+      .expect(409);
+    expect(inUse.body.code).toBe('ROLE_IN_USE');
+    await as(users.ana, slugA)
+      .delete(`/club/roles/${rolesA['Profesor']}`)
+      .expect(204);
+    // El dueño no se borra nunca.
+    await as(users.ana, slugA)
+      .delete(`/club/roles/${rolesA['Admin']}`)
+      .expect(400);
+  });
+
+  it('un rol sin permiso de jugar no desafía ni puede ser desafiado', async () => {
+    const apoderado = await as(users.ana, slugA)
+      .post('/club/roles')
+      .send({ name: 'Apoderado', permissions: [] })
+      .expect(201);
+    await as(users.ana, slugA)
+      .patch(`/club/members/${users.caro.id}`)
+      .send({ roleId: apoderado.body.id })
+      .expect(204);
+
+    await as(users.caro, slugA)
+      .post('/club/games')
+      .send({ opponentId: users.ana.id, timeControl: '5+0' })
+      .expect(403);
+    const res = await as(users.ana, slugA)
+      .post('/club/games')
+      .send({ opponentId: users.caro.id, timeControl: '5+0' })
+      .expect(422);
+    expect(res.body.code).toBe('OPPONENT_NOT_MEMBER');
+  });
+
+  it('el club no se queda sin dueño', async () => {
     await as(users.ana, slugA)
       .patch(`/club/members/${users.ana.id}`)
-      .send({ role: 'COACH' })
+      .send({ roleId: rolesA['Alumno'] })
       .expect(409);
   });
 
-  it('el OWNER de otro club no puede sacar miembros de este', async () => {
+  it('el dueño de otro club no puede sacar miembros de este', async () => {
     await as(users.beto, slugA)
       .delete(`/club/members/${users.caro.id}`)
       .expect(403);
   });
 
-  it('el OWNER saca a un miembro', async () => {
+  it('el admin saca a un miembro', async () => {
     await as(users.ana, slugA)
       .delete(`/club/members/${users.caro.id}`)
       .expect(204);

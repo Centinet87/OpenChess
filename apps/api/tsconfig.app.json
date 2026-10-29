@@ -17,6 +17,7 @@
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.db-spec.ts",
+    "src/testing/**",
     "src/**/*.test.ts",
     "eslint.config.js",
     "eslint.config.cjs",

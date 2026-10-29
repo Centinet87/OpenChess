@@ -9,6 +9,7 @@
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/**/*.db-spec.[jt]s",
       "!{projectRoot}/jest.db.config.*",
+      "!{projectRoot}/src/testing/**/*",
       "!{projectRoot}/tsconfig.spec.json",
       "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/src/test-setup.[jt]s",

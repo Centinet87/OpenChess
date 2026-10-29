@@ -7,7 +7,7 @@
 ## Qué vamos a construir
 
 - Cada **club o academia** es un tenant con su propio espacio: `miclub.openchess.app`.
-- Hay tres roles dentro de cada club: **dueño**, **profesor** y **alumno**.
+- Cada club define sus roles (por ejemplo Presidente, Profesor, Socio, Miembro del club), con permisos, orden y color. Parte con **Admin** (dueño), **Profesor** y **Alumno**.
 - Los miembros juegan partidas en vivo entre ellos, con reloj. Cada partida queda guardada en PGN y suma a un ranking interno del club.
 - El código es abierto con licencia MIT, y el negocio es la versión hosteada que se paga por club.
 
@@ -76,7 +76,7 @@ Se usan donde el problema los pide, no como meta:
 - Contexto del tenant con `nestjs-cls` y la extensión de Prisma que fija `app.club_id`.
 - Políticas RLS en todas las tablas con `club_id`.
 - Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256.
-- Crear un club, invitar alumnos por link y gestionar roles. Guards de Nest que consultan el rol en `memberships`.
+- Crear un club, invitar por link con un rol y gestionar roles. Guards de Nest que consultan el rol y sus permisos en `memberships` y `club_roles`.
 - **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro. Aplica a las tablas con `club_id` (`memberships`, `invitations`, `games`). `users`, `clubs` y `refresh_tokens` son globales: no tienen RLS y solo se leen desde `identity` y los guards, nunca devueltas tal cual a otro club.
 
 ### Fase 2: Jugar (alta) — hecha en el backend; falta el tablero en el front
@@ -93,12 +93,18 @@ Se usan donde el problema los pide, no como meta:
 - Tabla de posiciones (`GET /club/ratings`) y perfil de cada jugador con su historial (`GET /club/ratings/:userId`). El PGN de cada partida sale de `GET /club/games/:id`.
 - Visor de partidas para revisarlas jugada a jugada.
 
+### Roles configurables — hecho en el backend; faltan las pantallas
+
+- Permisos: `MANAGE_ROLES`, `INVITE_MEMBERS`, `REMOVE_MEMBERS`, `MANAGE_FIDE`, `PLAY_GAMES` e `IMPORT_GAMES`. El rol dueño los tiene todos, no se borra y el club siempre tiene alguien con él.
+- Jerarquía con orden y color: solo se tocan roles por debajo del propio y no se da un permiso que uno no tiene. Solo un dueño reordena.
+- `GET/POST /club/roles`, `PATCH/DELETE /club/roles/:id`, `PUT /club/roles/order`, `GET /club/roles/permissions` y `GET /club/me` (mi rol y permisos).
+
 ### Lichess, Chess.com y Elo FIDE — hecho en el backend; faltan las pantallas
 
 - Cada usuario vincula su cuenta de Lichess (OAuth con PKCE) o de Chess.com (código en el perfil). Una cuenta verificada es de una sola persona.
 - El perfil del club muestra los ratings online de cada miembro.
 - Un miembro trae al club sus partidas de los últimos 30 días. Las de ajedrez estándar entre dos miembros con cuentas verificadas cuentan para el ranking del club.
-- Elo FIDE: FIDE no tiene login ni API, así que el FIDE ID de un miembro lo asigna un admin (dueño) del club y vale solo en ese club. Se lee la ficha pública de ratings.fide.com (si FIDE cambia esa página, hay que ajustar `apps/api/src/linked-accounts/fide.ts`). Quien tiene Elo FIDE y aún no juega en el club parte con ese rating (RD 150) en vez de 1500.
+- Elo FIDE: FIDE no tiene login ni API, así que el FIDE ID de un miembro lo asigna quien tiene el permiso `MANAGE_FIDE` y vale solo en ese club. Se lee la ficha pública de ratings.fide.com (si FIDE cambia esa página, hay que ajustar `apps/api/src/linked-accounts/fide.ts`). Quien tiene Elo FIDE y aún no juega en el club parte con ese rating (RD 150) en vez de 1500.
 - `GET/POST/DELETE /accounts/...` en el dominio raíz; `GET/PUT/DELETE /club/fide/:userId` en el club; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
 
 ### Fase 4: Lanzamiento (media)

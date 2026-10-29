@@ -27,7 +27,7 @@ export class GamesUseCases {
     if (!(await this.deps.members.isMember(clubId, input.opponentId))) {
       throw new GameError(
         'OPPONENT_NOT_MEMBER',
-        'El rival no es miembro del club',
+        'El rival no es miembro del club o su rol no le permite jugar',
       );
     }
     const challengerIsWhite =

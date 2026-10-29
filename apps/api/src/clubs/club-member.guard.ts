@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   type CanActivate,
 } from '@nestjs/common';
+import type { Permission } from '@openchess/clubs';
 import { ClsService } from 'nestjs-cls';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 
@@ -25,15 +26,21 @@ export class ClubMemberGuard implements CanActivate {
     if (!clubId) throw new NotFoundException('Club no encontrado');
     if (!userId) throw new UnauthorizedException();
 
-    // Todavía sin club en el contexto: RLS deja ver solo las membresías propias.
+    // Todavía sin club en el contexto: RLS deja ver solo las membresías propias (y su rol).
     const member = await this.prisma.client.membership.findUnique({
       where: { clubId_userId: { clubId, userId } },
-      select: { role: true },
+      select: {
+        role: { select: { id: true, isOwner: true, permissions: true } },
+      },
     });
     if (!member) throw new ForbiddenException('No eres miembro de este club');
 
     this.cls.set('clubId', clubId);
-    this.cls.set('role', member.role);
+    this.cls.set('role', {
+      roleId: member.role.id,
+      isOwner: member.role.isOwner,
+      permissions: member.role.permissions as Permission[],
+    });
     return true;
   }
 }

@@ -1,23 +1,46 @@
-import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ClubError,
+  type ClubRole,
   type ClubsRepository,
   type Invitation,
   type InvitationsRepository,
   type Member,
-  type MemberRole,
-  type MemberView,
+  type MemberRow,
   type MyClub,
   type NewClub,
+  type Permission,
+  type RolesRepository,
 } from '@openchess/clubs';
-import { createPrismaClient, withTenantContext } from '@openchess/database';
+import { createPrismaClient, tenantTransaction } from '@openchess/database';
 import { BASE_PRISMA, TenantPrisma } from '../infrastructure/prisma.module';
+
+interface RoleRow {
+  id: string;
+  clubId: string;
+  name: string;
+  color: string | null;
+  position: number;
+  isOwner: boolean;
+  permissions: string[];
+}
+
+function toRole(row: RoleRow): ClubRole {
+  return { ...row, permissions: row.permissions as Permission[] };
+}
+
+const ROLE_SUMMARY = {
+  id: true,
+  name: true,
+  color: true,
+  position: true,
+  isOwner: true,
+} as const;
 
 /** Adaptador Prisma de los puertos de libs/clubs. Los tipos de Prisma no salen de aquí. */
 @Injectable()
 export class PrismaClubsRepository
-  implements ClubsRepository, InvitationsRepository
+  implements ClubsRepository, RolesRepository, InvitationsRepository
 {
   constructor(
     private readonly prisma: TenantPrisma,
@@ -34,24 +57,27 @@ export class PrismaClubsRepository
   }
 
   async createWithOwner(
-    club: NewClub,
+    club: NewClub & { id: string },
+    roles: readonly ClubRole[],
     ownerId: string,
-  ): Promise<{ id: string }> {
-    // La membresía del OWNER pasa por RLS: el contexto tiene que apuntar al club nuevo.
-    const id = randomUUID();
-    const scoped = withTenantContext(this.base, () => ({
-      clubId: id,
-      userId: ownerId,
-    }));
+  ): Promise<void> {
+    const owner = roles.find((r) => r.isOwner);
+    if (!owner) throw new Error('El club necesita un rol dueño');
+    // Roles y membresía pasan por RLS: el contexto tiene que apuntar al club nuevo.
     try {
-      await scoped.club.create({
-        data: {
-          id,
-          slug: club.slug,
-          name: club.name,
-          memberships: { create: { userId: ownerId, role: 'OWNER' } },
-        },
-      });
+      await tenantTransaction(
+        this.base,
+        { clubId: club.id, userId: ownerId },
+        (tx) => [
+          tx.club.create({
+            data: { id: club.id, slug: club.slug, name: club.name },
+          }),
+          tx.clubRole.createMany({ data: roles.map(toRoleData) }),
+          tx.membership.create({
+            data: { clubId: club.id, userId: ownerId, roleId: owner.id },
+          }),
+        ],
+      );
     } catch (error) {
       // Dos requests con el mismo slug a la vez: gana la primera.
       if ((error as { code?: string }).code === 'P2002') {
@@ -59,14 +85,13 @@ export class PrismaClubsRepository
       }
       throw error;
     }
-    return { id };
   }
 
   async listForUser(userId: string): Promise<MyClub[]> {
     const rows = await this.db.membership.findMany({
       where: { userId },
       select: {
-        role: true,
+        role: { select: ROLE_SUMMARY },
         club: { select: { id: true, slug: true, name: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -74,19 +99,19 @@ export class PrismaClubsRepository
     return rows.map((r) => ({ ...r.club, role: r.role }));
   }
 
-  async members(clubId: string): Promise<MemberView[]> {
+  async members(clubId: string): Promise<MemberRow[]> {
     const rows = await this.db.membership.findMany({
       where: { clubId },
       select: {
         userId: true,
-        role: true,
+        roleId: true,
         user: { select: { displayName: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
     return rows.map((r) => ({
       userId: r.userId,
-      role: r.role,
+      roleId: r.roleId,
       displayName: r.user.displayName,
     }));
   }
@@ -94,7 +119,7 @@ export class PrismaClubsRepository
   findMember(clubId: string, userId: string): Promise<Member | null> {
     return this.db.membership.findUnique({
       where: { clubId_userId: { clubId, userId } },
-      select: { userId: true, role: true },
+      select: { userId: true, roleId: true },
     });
   }
 
@@ -105,11 +130,11 @@ export class PrismaClubsRepository
   async updateRole(
     clubId: string,
     userId: string,
-    role: MemberRole,
+    roleId: string,
   ): Promise<void> {
     await this.db.membership.update({
       where: { clubId_userId: { clubId, userId } },
-      data: { role },
+      data: { roleId },
     });
   }
 
@@ -119,10 +144,41 @@ export class PrismaClubsRepository
     });
   }
 
+  async roles(clubId: string): Promise<ClubRole[]> {
+    const rows = await this.db.clubRole.findMany({
+      where: { clubId },
+      orderBy: { position: 'asc' },
+    });
+    return rows.map(toRole);
+  }
+
+  async saveRoles(roles: readonly ClubRole[]): Promise<void> {
+    if (roles.length === 0) return;
+    // Todos juntos: un reorden no puede quedar a medias.
+    await this.prisma.transaction((tx) =>
+      roles.map((role) =>
+        tx.clubRole.upsert({
+          where: { id: role.id },
+          create: toRoleData(role),
+          update: {
+            name: role.name,
+            color: role.color,
+            position: role.position,
+            permissions: [...role.permissions],
+          },
+        }),
+      ),
+    );
+  }
+
+  async deleteRole(clubId: string, roleId: string): Promise<void> {
+    await this.db.clubRole.deleteMany({ where: { clubId, id: roleId } });
+  }
+
   async create(input: {
     clubId: string;
     tokenHash: string;
-    role: MemberRole;
+    roleId: string;
     createdById: string;
     expiresAt: Date;
   }): Promise<void> {
@@ -135,7 +191,7 @@ export class PrismaClubsRepository
       select: {
         id: true,
         clubId: true,
-        role: true,
+        roleId: true,
         expiresAt: true,
         acceptedAt: true,
       },
@@ -149,4 +205,16 @@ export class PrismaClubsRepository
     });
     return count === 1;
   }
+}
+
+function toRoleData(role: ClubRole) {
+  return {
+    id: role.id,
+    clubId: role.clubId,
+    name: role.name,
+    color: role.color,
+    position: role.position,
+    isOwner: role.isOwner,
+    permissions: [...role.permissions],
+  };
 }

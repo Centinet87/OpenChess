@@ -1,12 +1,11 @@
 import { ClubError } from './errors.js';
-import type { MemberRole } from './roster.js';
 
 export const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface Invitation {
   readonly id: string;
   readonly clubId: string;
-  readonly role: MemberRole;
+  readonly roleId: string;
   readonly expiresAt: Date;
   readonly acceptedAt: Date | null;
 }

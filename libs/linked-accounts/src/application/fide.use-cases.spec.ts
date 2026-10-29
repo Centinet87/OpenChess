@@ -68,7 +68,7 @@ describe('FideUseCases', () => {
   let profiles: Map<string, FideProfile>;
   let now: Date;
   let fide: FideUseCases;
-  const owner = { userId: 'ana', role: 'OWNER' as const };
+  const owner = { userId: 'ana', canManage: true };
 
   beforeEach(() => {
     repo = new MemoryFide();
@@ -94,12 +94,12 @@ describe('FideUseCases', () => {
     expect(await fide.get('club', 'beto')).toEqual(link);
   });
 
-  it('solo un admin puede asignarlo o quitarlo; ni un profesor ni el propio miembro', async () => {
+  it('sin el permiso no se asigna ni se quita, aunque sea el propio miembro', async () => {
     expect(
       await code(
         fide.link(
           'club',
-          { userId: 'beto', role: 'STUDENT' },
+          { userId: 'beto', canManage: false },
           'beto',
           '1503014',
         ),
@@ -107,10 +107,10 @@ describe('FideUseCases', () => {
     ).toBe('FORBIDDEN');
     expect(
       await code(
-        fide.link('club', { userId: 'c', role: 'COACH' }, 'beto', '1503014'),
+        fide.link('club', { userId: 'c', canManage: false }, 'beto', '1503014'),
       ),
     ).toBe('FORBIDDEN');
-    expect(await code(fide.unlink('club', { role: 'STUDENT' }, 'beto'))).toBe(
+    expect(await code(fide.unlink('club', { canManage: false }, 'beto'))).toBe(
       'FORBIDDEN',
     );
   });

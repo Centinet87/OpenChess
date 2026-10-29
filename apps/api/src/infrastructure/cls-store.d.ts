@@ -1,4 +1,4 @@
-import type { MemberRole } from '@openchess/clubs';
+import type { RoleGrant } from '@openchess/clubs';
 
 // Claves del contexto de la request: así un typo en cls.get/cls.set no compila.
 declare module 'nestjs-cls' {
@@ -9,6 +9,7 @@ declare module 'nestjs-cls' {
     clubId: string;
     /** Usuario autenticado, fijado por AuthGuard. */
     userId: string;
-    role: MemberRole;
+    /** Rol del usuario en el club y sus permisos, fijado por ClubMemberGuard. */
+    role: RoleGrant;
   }
 }

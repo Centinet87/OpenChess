@@ -7,6 +7,7 @@ import request from 'supertest';
 import { io, type Socket } from 'socket.io-client';
 import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
+import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import { ACCESS_COOKIE } from '../identity/cookies';
 import type { Ack } from './games.gateway';
@@ -122,13 +123,11 @@ beforeAll(async () => {
       base.club.create({ data: { slug, name: slug } }),
     ),
   );
-  await base.membership.createMany({
-    data: [
-      { clubId: clubA.id, userId: users.ana.id, role: 'OWNER' },
-      { clubId: clubA.id, userId: users.beto.id, role: 'STUDENT' },
-      { clubId: clubB.id, userId: users.caro.id, role: 'OWNER' },
-    ],
-  });
+  await seedMembers(base, [
+    { clubId: clubA.id, userId: users.ana.id, role: 'Admin' },
+    { clubId: clubA.id, userId: users.beto.id, role: 'Alumno' },
+    { clubId: clubB.id, userId: users.caro.id, role: 'Admin' },
+  ]);
 });
 
 afterAll(async () => {
