@@ -24,6 +24,9 @@
   ],
   "references": [
     {
+      "path": "../../libs/games/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/database/tsconfig.lib.json"
     },
     {

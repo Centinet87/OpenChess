@@ -6,13 +6,14 @@ const W = 'white-user';
 const B = 'black-user';
 
 function newGame(minutes = 5, increment = 0): Game {
-  return Game.create({
+  return Game.challenge({
     id: 'g1',
     clubId: 'c1',
     whiteId: W,
     blackId: B,
+    challengerId: W,
     timeControl: timeControl(minutes, increment),
-  });
+  }).accept(B).game;
 }
 
 const m = (uci: string): MoveInput => ({
@@ -43,14 +44,41 @@ function errorCode(fn: () => unknown): string | undefined {
 describe('Game', () => {
   it('no se juega contra uno mismo', () => {
     expect(() =>
-      Game.create({
+      Game.challenge({
         id: 'g',
         clubId: 'c',
         whiteId: W,
         blackId: W,
+        challengerId: W,
         timeControl: timeControl(5, 0),
       }),
     ).toThrow('uno mismo');
+  });
+
+  it('un desafío se juega solo cuando el rival lo acepta', () => {
+    const challenge = Game.challenge({
+      id: 'g',
+      clubId: 'c',
+      whiteId: W,
+      blackId: B,
+      challengerId: W,
+      timeControl: timeControl(5, 0),
+    });
+    expect(challenge.snapshot.status).toBe('pending');
+    expect(errorCode(() => challenge.move(W, m('e2e4'), 0))).toBe(
+      'NOT_STARTED',
+    );
+    expect(errorCode(() => challenge.accept(W))).toBe('CANNOT_ACCEPT_OWN');
+
+    const started = challenge.accept(B);
+    expect(started.events).toEqual([{ type: 'GameStarted', gameId: 'g' }]);
+    expect(errorCode(() => started.game.accept(B))).toBe('ALREADY_STARTED');
+
+    expect(challenge.decline(W, 0).game.snapshot).toMatchObject({
+      status: 'finished',
+      termination: 'declined',
+      result: null,
+    });
   });
 
   it('valida turno, jugador y legalidad', () => {

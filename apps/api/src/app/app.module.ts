@@ -9,6 +9,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
 import { ConfigModule } from '../config/config.module';
 import { ClubsModule } from '../clubs/clubs.module';
+import { GamesModule } from '../games/games.module';
 import { AppThrottlerGuard } from '../common/throttler.guard';
 import { IdentityModule } from '../identity/identity.module';
 import { PrismaModule } from '../infrastructure/prisma.module';
@@ -25,6 +26,7 @@ import { AppService } from './app.service';
     PrismaModule,
     IdentityModule,
     ClubsModule,
+    GamesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],

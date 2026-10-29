@@ -7,7 +7,7 @@ import {
   type TimeControlKind,
 } from './time-control.js';
 
-export type GameStatus = 'in_progress' | 'finished';
+export type GameStatus = 'pending' | 'in_progress' | 'finished';
 export type Result = '1-0' | '0-1' | '1/2-1/2';
 export type Termination =
   | 'checkmate'
@@ -18,7 +18,8 @@ export type Termination =
   | 'fifty_moves'
   | 'insufficient_material'
   | 'agreement'
-  | 'aborted';
+  | 'aborted'
+  | 'declined';
 
 /** Jugada en notación de coordenadas: e2 → e4, con promoción opcional. */
 export interface MoveInput {
@@ -33,6 +34,8 @@ export interface GameSnapshot {
   readonly clubId: string;
   readonly whiteId: string;
   readonly blackId: string;
+  /** Quién creó el desafío. El otro jugador es quien lo acepta. */
+  readonly challengerId: string;
   readonly timeControl: {
     readonly kind: TimeControlKind;
     readonly initialMs: number;
@@ -48,6 +51,7 @@ export interface GameSnapshot {
 }
 
 export type GameEvent =
+  | { readonly type: 'GameStarted'; readonly gameId: string }
   | {
       readonly type: 'MoveMade';
       readonly gameId: string;
@@ -85,6 +89,8 @@ const winnerResult = (winner: Color): Result =>
  * Cada estado decide qué comandos acepta.
  */
 interface GameState {
+  accept(game: Game, color: Color): Outcome;
+  decline(game: Game, color: Color, now: number): Outcome;
   move(game: Game, color: Color, move: MoveInput, now: number): Outcome;
   resign(game: Game, color: Color, now: number): Outcome;
   abort(game: Game, color: Color, now: number): Outcome;
@@ -94,7 +100,44 @@ interface GameState {
   checkTimeout(game: Game, now: number): Outcome;
 }
 
+const notStarted = (): never => {
+  throw new GameError('NOT_STARTED', 'El rival todavía no acepta el desafío');
+};
+
+/** Desafío enviado, esperando que el rival lo acepte. */
+const pending: GameState = {
+  accept(game, color) {
+    if (game.colorOf(game.snapshot.challengerId) === color) {
+      throw new GameError(
+        'CANNOT_ACCEPT_OWN',
+        'No puedes aceptar tu propio desafío',
+      );
+    }
+    return {
+      game: game.with({ status: 'in_progress' }),
+      events: [{ type: 'GameStarted', gameId: game.id }],
+    };
+  },
+  // Lo rechaza el rival o lo cancela quien desafió.
+  decline(game, _color, now) {
+    return game.finish(null, 'declined', now);
+  },
+  move: notStarted,
+  resign: notStarted,
+  abort: notStarted,
+  offerDraw: notStarted,
+  acceptDraw: notStarted,
+  declineDraw: notStarted,
+  checkTimeout: (game) => ({ game, events: [] }),
+};
+
+const alreadyStarted = (): never => {
+  throw new GameError('ALREADY_STARTED', 'La partida ya empezó');
+};
+
 const inProgress: GameState = {
+  accept: alreadyStarted,
+  decline: alreadyStarted,
   move(game, color, move, now) {
     const board = game.board();
     if (board.turn() !== color[0]) {
@@ -202,6 +245,8 @@ const over = (): never => {
 };
 
 const finished: GameState = {
+  accept: over,
+  decline: over,
   move: over,
   resign: over,
   abort: over,
@@ -209,6 +254,12 @@ const finished: GameState = {
   acceptDraw: over,
   declineDraw: over,
   checkTimeout: (game) => ({ game, events: [] }),
+};
+
+const STATES: Record<GameStatus, GameState> = {
+  pending,
+  in_progress: inProgress,
+  finished,
 };
 
 /** Fin de partida por las reglas, justo después de que `mover` jugó. */
@@ -253,13 +304,24 @@ export class Game {
     private readonly control: TimeControl,
   ) {}
 
-  static create(input: {
+  /** Un miembro desafía a otro. La partida empieza cuando el rival acepta. */
+  static challenge(input: {
     id: string;
     clubId: string;
     whiteId: string;
     blackId: string;
+    challengerId: string;
     timeControl: TimeControl;
   }): Game {
+    if (
+      input.challengerId !== input.whiteId &&
+      input.challengerId !== input.blackId
+    ) {
+      throw new GameError(
+        'NOT_A_PLAYER',
+        'Quien desafía tiene que jugar la partida',
+      );
+    }
     if (input.whiteId === input.blackId) {
       throw new GameError('SAME_PLAYER', 'No se puede jugar contra uno mismo');
     }
@@ -269,6 +331,7 @@ export class Game {
         clubId: input.clubId,
         whiteId: input.whiteId,
         blackId: input.blackId,
+        challengerId: input.challengerId,
         timeControl: {
           kind: input.timeControl.kind,
           initialMs: input.timeControl.initialMs,
@@ -277,7 +340,7 @@ export class Game {
         pgn: '',
         clock: Clock.initial(input.timeControl).state,
         drawOfferBy: null,
-        status: 'in_progress',
+        status: 'pending',
         result: null,
         termination: null,
       },
@@ -313,6 +376,14 @@ export class Game {
     if (userId === this.snapshot.whiteId) return 'white';
     if (userId === this.snapshot.blackId) return 'black';
     return null;
+  }
+
+  accept(userId: string): Outcome {
+    return this.state.accept(this, this.player(userId));
+  }
+
+  decline(userId: string, now: number): Outcome {
+    return this.state.decline(this, this.player(userId), now);
   }
 
   move(userId: string, move: MoveInput, now: number): Outcome {
@@ -395,7 +466,7 @@ export class Game {
   }
 
   private get state(): GameState {
-    return this.snapshot.status === 'finished' ? finished : inProgress;
+    return STATES[this.snapshot.status];
   }
 
   private player(userId: string): Color {

@@ -31,6 +31,8 @@ model User {
   memberships        Membership[]
   refreshTokens      RefreshToken[]
   invitationsCreated Invitation[]
+  gamesAsWhite       Game[]         @relation("white")
+  gamesAsBlack       Game[]         @relation("black")
 
   @@map("users")
 }
@@ -44,6 +46,7 @@ model Club {
 
   memberships Membership[]
   invitations Invitation[]
+  games       Game[]
 
   @@map("clubs")
 }
@@ -97,4 +100,44 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+enum GameStatus {
+  PENDING
+  IN_PROGRESS
+  FINISHED
+
+  @@map("game_status")
+}
+
+/// Partida. El PGN y el reloj alcanzan para reconstruirla (ver libs/games).
+model Game {
+  id           String     @id @db.Uuid
+  clubId       String     @map("club_id") @db.Uuid
+  whiteId      String     @map("white_id") @db.Uuid
+  blackId      String     @map("black_id") @db.Uuid
+  challengerId String     @map("challenger_id") @db.Uuid
+  timeKind     String     @map("time_kind")
+  initialMs    Int        @map("initial_ms")
+  incrementMs  Int        @map("increment_ms")
+  pgn          String     @default("")
+  /// whiteMs, blackMs, running, since (ver ClockState)
+  clock        Json
+  drawOfferBy  String?    @map("draw_offer_by")
+  status       GameStatus
+  result       String?
+  termination  String?
+  /// Control de concurrencia optimista: sube en cada cambio.
+  version      Int        @default(0)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  club  Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  white User @relation("white", fields: [whiteId], references: [id], onDelete: Cascade)
+  black User @relation("black", fields: [blackId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+  @@index([whiteId])
+  @@index([blackId])
+  @@map("games")
 }
