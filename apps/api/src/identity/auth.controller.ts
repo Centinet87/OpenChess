@@ -31,7 +31,7 @@ import {
   setSessionCookies,
 } from './cookies';
 
-// Login y registro: 5 intentos por minuto por IP.
+// Login y registro: 5 intentos por minuto por IP y email (ver AppThrottlerGuard).
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller('auth')

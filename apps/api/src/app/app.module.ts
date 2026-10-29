@@ -5,10 +5,11 @@ import {
   type NestModule,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
 import { ConfigModule } from '../config/config.module';
 import { ClubsModule } from '../clubs/clubs.module';
+import { AppThrottlerGuard } from '../common/throttler.guard';
 import { IdentityModule } from '../identity/identity.module';
 import { PrismaModule } from '../infrastructure/prisma.module';
 import { TenantMiddleware } from '../tenant/tenant.middleware';
@@ -26,7 +27,7 @@ import { AppService } from './app.service';
     ClubsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [AppService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

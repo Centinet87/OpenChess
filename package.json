@@ -11,7 +11,7 @@
     "@eslint/js": "^9.8.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
-    "@next/eslint-plugin-next": "^16.1.6",
+    "@next/eslint-plugin-next": "~16.4.3",
     "@nx/eslint": "24.0.0",
     "@nx/eslint-plugin": "24.0.0",
     "@nx/jest": "24.0.0",
@@ -36,7 +36,7 @@
     "@types/supertest": "^7.2.1",
     "dotenv": "^18.0.9",
     "eslint": "^9.8.0",
-    "eslint-config-next": "^16.1.6",
+    "eslint-config-next": "~16.4.3",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jsx-a11y": "6.10.1",
@@ -70,11 +70,14 @@
     "@nestjs/platform-express": "^11.0.0",
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
-    "next": "~16.1.6",
+    "next": "~16.4.3",
     "pg": "^8.23.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0"
+  },
+  "overrides": {
+    "multer": "^2.5.0"
   }
 }

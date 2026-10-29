@@ -113,3 +113,14 @@ Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de
 | Con MIT, alguien puede montar un SaaS cerrado con este código    | Medio          | Está bien si el valor está en el servicio hosteado. Cambiar a AGPL es más fácil mientras no haya contribuidores externos                                                           |
 | El gateway de WebSocket no escala a muchas partidas              | Medio          | Para el MVP basta una instancia. Si crece, se separa del monolito y se agrega Redis pub/sub                                                                                        |
 | Trampas con un motor de ajedrez                                  | Bajo en el MVP | Las partidas son internas del club y el profesor conoce a los alumnos. Se revisa más adelante                                                                                      |
+
+## Pendientes del QA (2026-10-29)
+
+| Sev.  | Pendiente                                                                                                                                       |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Medio | Carrera en `changeRole`/`removeMember`: dos OWNER que se bajan a la vez dejan el club sin dueño. Necesita transacción con `SELECT … FOR UPDATE` |
+| Medio | Dos pestañas que refrescan a la vez cierran la sesión. Agregar unos segundos de gracia al token recién rotado                                   |
+| Medio | `withTenantContext` hace 3 sentencias por consulta. Fijar el contexto una vez por transacción cuando haya transacciones por request             |
+| Bajo  | Mapear P2002 a `ALREADY_MEMBER` al aceptar una invitación                                                                                       |
+| Bajo  | Job que borre refresh tokens vencidos                                                                                                           |
+| Bajo  | Tests del rate limit, de `X-Forwarded-Host` y de las carreras                                                                                   |
