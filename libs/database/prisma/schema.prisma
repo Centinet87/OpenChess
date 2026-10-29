@@ -1,0 +1,10 @@
+// Esquema de OpenChess. Los modelos se agregan desde la Fase 1.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

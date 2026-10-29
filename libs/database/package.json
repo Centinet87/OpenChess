@@ -1,0 +1,60 @@
+{
+  "name": "@openchess/database",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "nx": {
+    "name": "database",
+    "tags": [
+      "scope:api",
+      "type:data"
+    ],
+    "targets": {
+      "generate": {
+        "command": "prisma generate",
+        "options": {
+          "cwd": "{projectRoot}"
+        },
+        "inputs": [
+          "{projectRoot}/prisma/schema.prisma"
+        ],
+        "outputs": [
+          "{projectRoot}/src/generated/prisma"
+        ],
+        "cache": true
+      },
+      "migrate": {
+        "command": "prisma migrate dev",
+        "options": {
+          "cwd": "{projectRoot}"
+        }
+      },
+      "typecheck": {
+        "dependsOn": [
+          "generate"
+        ]
+      },
+      "test": {
+        "dependsOn": [
+          "generate"
+        ]
+      },
+      "lint": {
+        "dependsOn": [
+          "generate"
+        ]
+      }
+    }
+  },
+  "dependencies": {}
+}

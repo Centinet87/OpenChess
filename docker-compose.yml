@@ -1,0 +1,19 @@
+# Postgres para desarrollo local. No usar estas credenciales fuera de tu máquina.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: openchess
+      POSTGRES_PASSWORD: openchess
+      POSTGRES_DB: openchess
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U openchess']
+      interval: 5s
+      retries: 10
+
+volumes:
+  db-data:
