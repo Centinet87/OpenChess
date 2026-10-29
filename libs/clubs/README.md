@@ -1,7 +1,8 @@
 # clubs
 
-This library was generated with [Nx](https://nx.dev).
+Dominio de clubes: membresías, roles e invitaciones. No depende de Prisma ni de Nest.
 
-## Running unit tests
+- `src/domain`: reglas puras (slug, `Roster`, invitaciones) y errores de dominio.
+- `src/application`: casos de uso y los puertos que implementa la API en `apps/api/src/clubs`.
 
-Run `nx test clubs` to execute the unit tests via [Jest](https://jestjs.io).
+Tests: `nx test clubs`.

@@ -1,7 +1,8 @@
 # games
 
-This library was generated with [Nx](https://nx.dev).
+Dominio de partidas: reglas con chess.js, reloj y controles de tiempo. No depende de Prisma ni de Nest.
 
-## Running unit tests
+- `src/domain`: `Game` (patrón State), reloj y controles de tiempo (patrón Strategy).
+- `src/application`: casos de uso y los puertos que implementa la API en `apps/api/src/games`.
 
-Run `nx test games` to execute the unit tests via [Jest](https://jestjs.io).
+Tests: `nx test games`.

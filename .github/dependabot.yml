@@ -1,0 +1,16 @@
+# Actualizaciones semanales, agrupadas en un PR por ecosistema para no llenar el repo de PRs.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: desa
+    groups:
+      dependencias:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: desa

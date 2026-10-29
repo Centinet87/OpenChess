@@ -55,3 +55,6 @@ test-output
 
 # Cliente Prisma generado
 libs/database/src/generated
+
+# Next lo regenera en cada build (con su propio formato)
+apps/web/next-env.d.ts
