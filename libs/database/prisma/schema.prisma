@@ -308,12 +308,13 @@ model FideLink {
 enum EmailTokenPurpose {
   VERIFY_EMAIL
   RESET_PASSWORD
+  CHANGE_EMAIL
 
   @@map("email_token_purpose")
 }
 
 /// Link de un solo uso que se manda por email (verificar la cuenta, recuperar la
-/// contraseña). Se guarda el SHA-256 del token, nunca el token.
+/// contraseña, cambiar el email). Se guarda el SHA-256 del token, nunca el token.
 model EmailToken {
   id        String            @id @default(uuid()) @db.Uuid
   userId    String            @map("user_id") @db.Uuid
@@ -321,6 +322,8 @@ model EmailToken {
   tokenHash String            @unique @map("token_hash")
   expiresAt DateTime          @map("expires_at")
   usedAt    DateTime?         @map("used_at")
+  /// CHANGE_EMAIL: el email nuevo, que pasa a la cuenta al usar el link.
+  newEmail  String?           @map("new_email")
   createdAt DateTime          @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

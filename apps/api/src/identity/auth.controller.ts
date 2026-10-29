@@ -23,6 +23,7 @@ import { AuthGuard } from './auth.guard';
 import { AccountEmailsService } from './account-emails.service';
 import { AccountService } from './account.service';
 import {
+  changeEmailSchema,
   changePasswordSchema,
   deleteAccountSchema,
   forgotPasswordSchema,
@@ -30,6 +31,7 @@ import {
   registerSchema,
   resetPasswordSchema,
   tokenSchema,
+  type ChangeEmailInput,
   type ChangePasswordInput,
   type DeleteAccountInput,
   type ForgotPasswordInput,
@@ -193,6 +195,31 @@ export class AuthController {
       this.env,
     );
     this.emails.queuePasswordChanged(userId);
+  }
+
+  /** Manda un link al email nuevo; la cuenta lo usa recién al confirmarlo. */
+  @Post('change-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  async changeEmail(
+    @Body(new ZodPipe(changeEmailSchema)) body: ChangeEmailInput,
+  ): Promise<void> {
+    await this.emails.requestEmailChange(
+      this.cls.get('userId'),
+      body.password,
+      body.newEmail,
+    );
+  }
+
+  /** El link del email nuevo lleva aquí (desde la página /cambiar-email del front). */
+  @Post('confirm-email-change')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async confirmEmailChange(
+    @Body(new ZodPipe(tokenSchema)) body: TokenInput,
+  ): Promise<void> {
+    await this.emails.confirmEmailChange(body.token);
   }
 
   /** Todos los datos de la persona en JSON (acceso y portabilidad). */

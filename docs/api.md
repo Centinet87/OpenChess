@@ -21,34 +21,36 @@ Los códigos de cada área están en `ClubErrorCode`, `GameErrorCode`, `LinkErro
 
 ### Límites
 
-| Qué                                                    | Límite                      |
-| ------------------------------------------------------ | --------------------------- |
-| Cualquier ruta                                         | 100 por minuto por IP       |
-| Login, registro, links por email, cambio de contraseña | 5 por minuto por IP y email |
-| Lo que consulta Lichess, Chess.com o FIDE              | 5 por minuto                |
-| Descargar los datos o eliminar la cuenta               | 10 por minuto               |
-| Asignar FIDE ID (quien gestiona FIDE)                  | 30 por minuto               |
-| Mensajes por el WebSocket                              | 30 cada 10 s por conexión   |
+| Qué                                                                | Límite                      |
+| ------------------------------------------------------------------ | --------------------------- |
+| Cualquier ruta                                                     | 100 por minuto por IP       |
+| Login, registro, links por email, cambios de contraseña o de email | 5 por minuto por IP y email |
+| Lo que consulta Lichess, Chess.com o FIDE                          | 5 por minuto                |
+| Descargar los datos o eliminar la cuenta                           | 10 por minuto               |
+| Asignar FIDE ID (quien gestiona FIDE)                              | 30 por minuto               |
+| Mensajes por el WebSocket                                          | 30 cada 10 s por conexión   |
 
 ## Cuenta y sesión
 
-| Método | Ruta                       | Body                  | Respuesta            | Notas                                                                                                                                               |
-| ------ | -------------------------- | --------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/auth/register`           | `RegisterInput`       | `{ ok: true }` (201) | Deja la sesión iniciada y manda el email de verificación                                                                                            |
-| POST   | `/auth/login`              | `LoginInput`          | `{ ok: true }`       |                                                                                                                                                     |
-| POST   | `/auth/refresh`            | —                     | `{ ok: true }`       | Renueva las dos cookies                                                                                                                             |
-| POST   | `/auth/logout`             | —                     | 204                  |                                                                                                                                                     |
-| GET    | `/auth/me`                 | —                     | `Profile`            |                                                                                                                                                     |
-| PATCH  | `/auth/me`                 | `UpdateProfileInput`  | `Profile`            | Cambia el nombre visible                                                                                                                            |
-| POST   | `/auth/change-password`    | `ChangePasswordInput` | 204                  | Pide la actual. Cierra las demás sesiones, deja cookies nuevas y avisa por email                                                                    |
-| POST   | `/auth/verification-email` | —                     | 204                  | Reenvía el link de verificación                                                                                                                     |
-| POST   | `/auth/verify-email`       | `TokenInput`          | 204                  | El token viene en el link: `/verificar?token=…`                                                                                                     |
-| POST   | `/auth/forgot-password`    | `ForgotPasswordInput` | 204                  | Responde igual exista o no la cuenta                                                                                                                |
-| POST   | `/auth/reset-password`     | `ResetPasswordInput`  | 204                  | El token viene en el link: `/restablecer?token=…`. Cierra todas las sesiones                                                                        |
-| GET    | `/auth/account/export`     | —                     | `AccountExport`      | Se descarga como `openchess-datos.json`                                                                                                             |
-| DELETE | `/auth/account`            | `DeleteAccountInput`  | 204                  | Pide la contraseña. 409 con `AccountError` si tiene una partida en curso, es el único dueño de un club con más miembros o tiene un plan Pro vigente |
+| Método | Ruta                         | Body                  | Respuesta            | Notas                                                                                                                                                    |
+| ------ | ---------------------------- | --------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/auth/register`             | `RegisterInput`       | `{ ok: true }` (201) | Deja la sesión iniciada y manda el email de verificación                                                                                                 |
+| POST   | `/auth/login`                | `LoginInput`          | `{ ok: true }`       |                                                                                                                                                          |
+| POST   | `/auth/refresh`              | —                     | `{ ok: true }`       | Renueva las dos cookies                                                                                                                                  |
+| POST   | `/auth/logout`               | —                     | 204                  |                                                                                                                                                          |
+| GET    | `/auth/me`                   | —                     | `Profile`            |                                                                                                                                                          |
+| PATCH  | `/auth/me`                   | `UpdateProfileInput`  | `Profile`            | Cambia el nombre visible                                                                                                                                 |
+| POST   | `/auth/change-password`      | `ChangePasswordInput` | 204                  | Pide la actual. Cierra las demás sesiones, deja cookies nuevas y avisa por email                                                                         |
+| POST   | `/auth/change-email`         | `ChangeEmailInput`    | 204                  | Pide la contraseña. Manda un link al email nuevo; la cuenta lo usa recién al confirmarlo. Si el email ya tiene cuenta, responde igual pero no manda nada |
+| POST   | `/auth/confirm-email-change` | `TokenInput`          | 204                  | El token viene en el link: `/cambiar-email?token=…`. Avisa al email de antes. 409 `EMAIL_TAKEN` si otra cuenta lo tomó entretanto                        |
+| POST   | `/auth/verification-email`   | —                     | 204                  | Reenvía el link de verificación                                                                                                                          |
+| POST   | `/auth/verify-email`         | `TokenInput`          | 204                  | El token viene en el link: `/verificar?token=…`                                                                                                          |
+| POST   | `/auth/forgot-password`      | `ForgotPasswordInput` | 204                  | Responde igual exista o no la cuenta                                                                                                                     |
+| POST   | `/auth/reset-password`       | `ResetPasswordInput`  | 204                  | El token viene en el link: `/restablecer?token=…`. Cierra todas las sesiones                                                                             |
+| GET    | `/auth/account/export`       | —                     | `AccountExport`      | Se descarga como `openchess-datos.json`                                                                                                                  |
+| DELETE | `/auth/account`              | `DeleteAccountInput`  | 204                  | Pide la contraseña. 409 con `AccountError` si tiene una partida en curso, es el único dueño de un club con más miembros o tiene un plan Pro vigente      |
 
-Los links de los emails apuntan a páginas del front: `PUBLIC_URL/verificar?token=…` y `PUBLIC_URL/restablecer?token=…`. Esas páginas mandan el token a la API.
+Los links de los emails apuntan a páginas del front: `PUBLIC_URL/verificar?token=…`, `PUBLIC_URL/restablecer?token=…` y `PUBLIC_URL/cambiar-email?token=…`. Esas páginas mandan el token a la API.
 
 ## Clubes
 

@@ -53,3 +53,40 @@ export function passwordChanged(to: string, name: string, link: string): Email {
     html: layout(lines, link, 'Ir a OpenChess'),
   };
 }
+
+export function confirmEmailChange(
+  to: string,
+  name: string,
+  link: string,
+): Email {
+  const lines = [
+    `Hola ${name}:`,
+    'Pediste usar este email en tu cuenta de OpenChess. Confírmalo con el botón; el link vale 24 horas.',
+    'Si no fuiste tú, ignora este email: tu cuenta sigue con el email de antes.',
+  ];
+  return {
+    to,
+    subject: 'Confirma tu nuevo email en OpenChess',
+    text: `${lines.join('\n\n')}\n\n${link}`,
+    html: layout(lines, link, 'Confirmar email'),
+  };
+}
+
+export function emailChanged(
+  to: string,
+  name: string,
+  newEmail: string,
+  link: string,
+): Email {
+  const lines = [
+    `Hola ${name}:`,
+    `El email de tu cuenta en OpenChess cambió a ${newEmail}. Desde ahora inicias sesión con ese.`,
+    'Si no fuiste tú, escríbenos respondiendo a este email.',
+  ];
+  return {
+    to,
+    subject: 'El email de tu cuenta de OpenChess cambió',
+    text: `${lines.join('\n\n')}\n\n${link}`,
+    html: layout(lines, link, 'Ir a OpenChess'),
+  };
+}

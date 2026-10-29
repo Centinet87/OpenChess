@@ -63,9 +63,12 @@ export type LinkErrorCode =
 export type BillingErrorCode =
   'FORBIDDEN' | 'ALREADY_SUBSCRIBED' | 'NOT_SUBSCRIBED' | 'BILLING_UNAVAILABLE';
 
-/** Al eliminar la cuenta (DELETE /auth/account). */
+/**
+ * De la cuenta: al eliminarla (GAME_IN_PROGRESS, LAST_OWNER,
+ * SUBSCRIPTION_ACTIVE) o al confirmar un email nuevo (EMAIL_TAKEN).
+ */
 export type AccountErrorCode =
-  'GAME_IN_PROGRESS' | 'LAST_OWNER' | 'SUBSCRIPTION_ACTIVE';
+  'GAME_IN_PROGRESS' | 'LAST_OWNER' | 'SUBSCRIPTION_ACTIVE' | 'EMAIL_TAKEN';
 
 /** Solo por el WebSocket de partidas, además de los de GameErrorCode. */
 export type SocketErrorCode =
@@ -151,6 +154,11 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: password,
 });
+/** POST /auth/change-email: el cambio se hace al confirmar el link del email nuevo. */
+export const changeEmailSchema = z.object({
+  password: z.string().min(1).max(128),
+  newEmail: email,
+});
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -160,6 +168,7 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 
 /** GET y PATCH /auth/me */
 export interface Profile {
