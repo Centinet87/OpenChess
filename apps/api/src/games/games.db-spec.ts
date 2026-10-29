@@ -133,10 +133,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   sockets.forEach((s) => s.disconnect());
+  // Primero la app: así termina de contar en el ranking las partidas pendientes.
+  await app.close();
   await base.club.deleteMany({ where: { slug: { in: [slugA, slugB] } } });
   await base.user.deleteMany({ where: { email: { in: emails } } });
   await base.$disconnect();
-  await app.close();
 });
 
 describe('partidas', () => {

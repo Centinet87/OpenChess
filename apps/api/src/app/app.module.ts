@@ -13,6 +13,7 @@ import { GamesModule } from '../games/games.module';
 import { AppThrottlerGuard } from '../common/throttler.guard';
 import { IdentityModule } from '../identity/identity.module';
 import { PrismaModule } from '../infrastructure/prisma.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { TenantMiddleware } from '../tenant/tenant.middleware';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -27,6 +28,7 @@ import { AppService } from './app.service';
     IdentityModule,
     ClubsModule,
     GamesModule,
+    RatingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],

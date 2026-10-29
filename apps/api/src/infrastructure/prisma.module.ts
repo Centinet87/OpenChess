@@ -8,6 +8,7 @@ import {
 import { ClsService } from 'nestjs-cls';
 import {
   createPrismaClient,
+  tenantTransaction,
   withTenantContext,
   type TenantPrismaClient,
 } from '@openchess/database';
@@ -27,12 +28,23 @@ export class TenantPrisma implements OnModuleDestroy {
   constructor(
     @Inject(BASE_PRISMA)
     private readonly base: ReturnType<typeof createPrismaClient>,
-    cls: ClsService,
+    private readonly cls: ClsService,
   ) {
-    this.client = withTenantContext(base, () => ({
-      clubId: cls.get('clubId'),
-      userId: cls.get('userId'),
-    }));
+    this.client = withTenantContext(base, () => this.context());
+  }
+
+  /** Varias escrituras atómicas con RLS (ver tenantTransaction). */
+  transaction(
+    build: Parameters<typeof tenantTransaction>[2],
+  ): Promise<unknown[]> {
+    return tenantTransaction(this.base, this.context(), build);
+  }
+
+  private context() {
+    return {
+      clubId: this.cls.get('clubId'),
+      userId: this.cls.get('userId'),
+    };
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -1,6 +1,6 @@
 # Plan: OpenChess, un SaaS multi-tenant para clubes de ajedrez
 
-**Estado:** aprobado. Fases 0 y 1 hechas; la Fase 2 está hecha en el backend.
+**Estado:** aprobado. Fases 0 y 1 hechas; las Fases 2 y 3 están hechas en el backend.
 **Licencia:** MIT
 **Complejidad:** alta en total. La Fase 2 (tiempo real) es la más pesada.
 
@@ -29,7 +29,7 @@
 | Autorización        | El JWT solo lleva el `user_id`. El club sale del subdominio y el rol se consulta en `memberships`                                                                   | Si el rol va en el token, un miembro expulsado sigue entrando hasta que el token vence                                           |
 | Ajedrez             | `chess.js` para validar jugadas y `chessground` para el tablero                                                                                                     | Son librerías probadas. No hay que programar las reglas a mano                                                                   |
 | Tiempo real         | Gateway de WebSocket de Nest (`@nestjs/websockets` + Socket.IO) dentro del monolito                                                                                 | Una sola app que desplegar. Si crece, se separa y se agrega Redis pub/sub                                                        |
-| Ranking             | Glicko-2 con la librería `glicko2`                                                                                                                                  | Es el estándar online y funciona bien con pocas partidas                                                                         |
+| Ranking             | Glicko-2 implementado en `libs/ratings` (sin librería), probado contra el ejemplo del paper de Glickman                                                             | Estándar online, bien con pocas partidas. La lib `glicko2` no trae tipos; el algoritmo son ~80 líneas puras                      |
 | Hosting             | Vercel para el front, Fly.io o Railway para la API, Neon o Supabase para Postgres                                                                                   | Todo tiene plan gratis para el MVP. La API necesita un servidor persistente por los WebSockets                                   |
 | Cobros              | Stripe, o Mercado Pago/Flow si los clientes son de Chile. Va después del MVP                                                                                        | Primero hay que validar que los clubes lo usen                                                                                   |
 
@@ -87,10 +87,10 @@ Se usan donde el problema los pide, no como meta:
 - Manejo de reconexión, abandono por tiempo, tablas y rendición.
 - Al terminar, se guarda el PGN y se emite el evento `GameFinished`.
 
-### Fase 3: Ranking e historial (baja)
+### Fase 3: Ranking e historial (baja) — hecha en el backend; faltan las pantallas
 
-- `ratings` escucha `GameFinished` y recalcula Glicko-2 por club.
-- Tabla de posiciones y perfil de cada jugador con sus partidas.
+- `ratings` escucha `GameFinished` y recalcula Glicko-2 por club. Cada partida es su propio período de rating, y una partida abortada no cuenta.
+- Tabla de posiciones (`GET /club/ratings`) y perfil de cada jugador con su historial (`GET /club/ratings/:userId`). El PGN de cada partida sale de `GET /club/games/:id`.
 - Visor de partidas para revisarlas jugada a jugada.
 
 ### Fase 4: Lanzamiento (media)

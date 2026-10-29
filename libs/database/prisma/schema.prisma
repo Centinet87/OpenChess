@@ -36,6 +36,9 @@ model User {
   invitationsCreated Invitation[]
   gamesAsWhite       Game[]         @relation("white")
   gamesAsBlack       Game[]         @relation("black")
+  ratings            Rating[]
+  ratingChanges      RatingChange[] @relation("player")
+  rivalRatingChanges RatingChange[] @relation("opponent")
 
   @@map("users")
 }
@@ -50,6 +53,9 @@ model Club {
   memberships Membership[]
   invitations Invitation[]
   games       Game[]
+
+  ratings       Rating[]
+  ratingChanges RatingChange[]
 
   @@map("clubs")
 }
@@ -139,8 +145,54 @@ model Game {
   white User @relation("white", fields: [whiteId], references: [id], onDelete: Cascade)
   black User @relation("black", fields: [blackId], references: [id], onDelete: Cascade)
 
+  ratingChanges RatingChange[]
+
   @@index([clubId, status])
   @@index([whiteId])
   @@index([blackId])
   @@map("games")
+}
+
+/// Rating Glicko-2 de un jugador en un club (ver libs/ratings). Se crea con su primera partida.
+model Rating {
+  clubId     String   @map("club_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  rating     Float
+  deviation  Float
+  volatility Float
+  games      Int
+  wins       Int
+  draws      Int
+  losses     Int
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@index([clubId, rating])
+  @@map("ratings")
+}
+
+/// Cómo cambió el rating de un jugador en una partida. Una fila por jugador:
+/// el índice único impide contar dos veces la misma partida.
+model RatingChange {
+  id           String   @id @default(uuid()) @db.Uuid
+  clubId       String   @map("club_id") @db.Uuid
+  gameId       String   @map("game_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  opponentId   String   @map("opponent_id") @db.Uuid
+  score        Float
+  ratingBefore Float    @map("rating_before")
+  ratingAfter  Float    @map("rating_after")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  club     Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  game     Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user     User @relation("player", fields: [userId], references: [id], onDelete: Cascade)
+  opponent User @relation("opponent", fields: [opponentId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([clubId, userId, createdAt])
+  @@map("rating_changes")
 }

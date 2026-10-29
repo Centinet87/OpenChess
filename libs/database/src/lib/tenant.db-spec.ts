@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { createPrismaClient } from './database.js';
-import { withTenantContext, type TenantContext } from './tenant.js';
+import {
+  tenantTransaction,
+  withTenantContext,
+  type TenantContext,
+} from './tenant.js';
 
 config({ path: '../../.env', quiet: true });
 
@@ -120,5 +124,48 @@ describe('RLS entre clubes', () => {
     context = { userId: userB };
     const rows = await db.membership.findMany();
     expect(rows.map((m) => m.userId)).toEqual([userB]);
+  });
+});
+
+describe('RLS en el ranking', () => {
+  const rating = (clubId: string, userId: string) => ({
+    clubId,
+    userId,
+    rating: 1500,
+    deviation: 350,
+    volatility: 0.06,
+    games: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+  });
+
+  beforeAll(async () => {
+    await base.rating.createMany({
+      data: [rating(clubA, userA), rating(clubB, userB)],
+    });
+  });
+
+  it('en el club A solo se ven sus ratings', async () => {
+    context = { clubId: clubA, userId: userA };
+    const rows = await db.rating.findMany();
+    expect(rows.map((r) => r.clubId)).toEqual([clubA]);
+  });
+
+  it('una transacción desde el club A que toca el club B no guarda nada', async () => {
+    await expect(
+      tenantTransaction(base, { clubId: clubA, userId: userA }, (tx) => [
+        tx.rating.update({
+          where: { clubId_userId: { clubId: clubA, userId: userA } },
+          data: { games: 1 },
+        }),
+        tx.rating.create({ data: rating(clubB, userA) }),
+      ]),
+    ).rejects.toThrow();
+
+    const a = await base.rating.findUniqueOrThrow({
+      where: { clubId_userId: { clubId: clubA, userId: userA } },
+    });
+    expect(a.games).toBe(0);
   });
 });
