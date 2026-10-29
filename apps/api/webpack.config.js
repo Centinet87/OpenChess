@@ -10,6 +10,16 @@ module.exports = {
     }),
   },
   plugins: [
+    // Unir módulos rompe el `export * as $Enums` del cliente que genera Prisma 7,
+    // y en un servidor Node no aporta nada. Va como plugin porque NxAppWebpackPlugin
+    // reescribe `optimization`.
+    {
+      apply(compiler) {
+        compiler.hooks.environment.tap('NoConcatenate', () => {
+          compiler.options.optimization.concatenateModules = false;
+        });
+      },
+    },
     new NxAppWebpackPlugin({
       target: 'node',
       compiler: 'tsc',

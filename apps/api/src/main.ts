@@ -1,16 +1,13 @@
-/**
- * This is not a production server yet!
- * This is only a minimal backend to get started.
- */
-
+import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app/app.module';
+import { configureApp } from './app/configure-app';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const globalPrefix = 'api';
-  app.setGlobalPrefix(globalPrefix);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  configureApp(app);
   const port = process.env.PORT || 3333;
   await app.listen(port);
   // Set when Nx waits for this server to be ready
@@ -25,9 +22,7 @@ async function bootstrap() {
       // @nx/js isn't installed
     }
   }
-  Logger.log(
-    `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`,
-  );
+  Logger.log(`API escuchando en http://localhost:${port}/api`);
 }
 
 bootstrap();
