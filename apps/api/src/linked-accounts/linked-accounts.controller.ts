@@ -31,7 +31,7 @@ import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
+import { secureCookies, type Env } from '../config/env';
 import { AuthGuard } from '../identity/auth.guard';
 import { pkcePair, type LichessOAuth } from './lichess';
 import {
@@ -144,7 +144,7 @@ export class LichessOAuthController {
     const { verifier, challenge } = pkcePair();
     res.cookie(OAUTH_COOKIE, `${state}.${verifier}`, {
       httpOnly: true,
-      secure: this.env.NODE_ENV === 'production',
+      secure: secureCookies(this.env),
       sameSite: 'lax',
       path: OAUTH_PATH,
       maxAge: OAUTH_TTL_MS,

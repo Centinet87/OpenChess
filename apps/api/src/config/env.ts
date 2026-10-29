@@ -34,7 +34,23 @@ const envSchema = z
   .refine((env) => env.NODE_ENV !== 'production' || !!env.COOKIE_DOMAIN, {
     message: 'COOKIE_DOMAIN es obligatorio en producción',
     path: ['COOKIE_DOMAIN'],
-  });
+  })
+  .refine(
+    (env) =>
+      env.NODE_ENV !== 'production' || env.PUBLIC_URL.startsWith('https://'),
+    {
+      message: 'PUBLIC_URL tiene que ser https:// en producción',
+      path: ['PUBLIC_URL'],
+    },
+  );
+
+/**
+ * Las cookies de sesión van con Secure si el sitio se sirve por https, aunque
+ * falte NODE_ENV=production: olvidarlo en un deploy no deja la sesión sin cifrar.
+ */
+export function secureCookies(env: Env): boolean {
+  return env.NODE_ENV === 'production' || env.PUBLIC_URL.startsWith('https://');
+}
 
 export type Env = z.infer<typeof envSchema>;
 

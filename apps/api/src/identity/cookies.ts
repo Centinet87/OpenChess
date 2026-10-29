@@ -1,5 +1,5 @@
 import type { CookieOptions, Response } from 'express';
-import type { Env } from '../config/env';
+import { secureCookies, type Env } from '../config/env';
 import { REFRESH_TTL_MS, type Session } from './auth.service';
 
 export const ACCESS_COOKIE = 'oc_at';
@@ -12,7 +12,7 @@ const REFRESH_PATH = '/api/auth';
 function baseOptions(env: Env): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
+    secure: secureCookies(env),
     sameSite: 'lax',
     domain: env.COOKIE_DOMAIN,
   };

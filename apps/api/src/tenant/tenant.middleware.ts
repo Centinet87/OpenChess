@@ -20,8 +20,22 @@ import { resolveClubSlug } from './club-slug';
  * después de comprobar la membresía: si una ruta olvida el guard, RLS no
  * devuelve filas del club en vez de devolvérselas a cualquiera.
  */
+/** slug → id del club, o null si no existe. Corto: un club recién creado o borrado se nota pronto. */
+const CACHE_TTL_MS = 30_000;
+const NOT_FOUND_TTL_MS = 5_000;
+const CACHE_MAX = 5_000;
+
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
+  /**
+   * Evita una consulta a la BD en cada request, que además corre antes del
+   * rate limit. Un id viejo no abre nada: ClubMemberGuard igual exige membresía.
+   */
+  private readonly cache = new Map<
+    string,
+    { id: string | null; until: number }
+  >();
+
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly prisma: TenantPrisma,
@@ -35,13 +49,29 @@ export class TenantMiddleware implements NestMiddleware {
     const slug = resolveClubSlug(host, this.env.APP_DOMAIN);
     if (!slug) return next();
 
+    const clubId = await this.clubId(slug);
+    if (!clubId) throw new NotFoundException('Club no encontrado');
+
+    this.cls.set('requestedClubId', clubId);
+    next();
+  }
+
+  private async clubId(slug: string): Promise<string | null> {
+    const now = Date.now();
+    const cached = this.cache.get(slug);
+    if (cached && cached.until > now) return cached.id;
+
     const club = await this.prisma.client.club.findUnique({
       where: { slug },
       select: { id: true },
     });
-    if (!club) throw new NotFoundException('Club no encontrado');
-
-    this.cls.set('requestedClubId', club.id);
-    next();
+    // Tope de tamaño: alguien que prueba slugs al azar no llena la memoria.
+    if (this.cache.size >= CACHE_MAX) this.cache.clear();
+    const id = club?.id ?? null;
+    this.cache.set(slug, {
+      id,
+      until: now + (id ? CACHE_TTL_MS : NOT_FOUND_TTL_MS),
+    });
+    return id;
   }
 }

@@ -30,6 +30,8 @@ export interface Profile {
 
 export interface AccessTokenPayload {
   sub: string;
+  /** Vencimiento en segundos (lo agrega jsonwebtoken al firmar). */
+  exp?: number;
 }
 
 const INVALID_CREDENTIALS = 'Email o contraseña incorrectos';

@@ -1,4 +1,4 @@
-import { loadEnv } from '../config/env';
+import { loadEnv, secureCookies } from '../config/env';
 import { throttleKey } from './throttler.guard';
 
 describe('throttleKey', () => {
@@ -32,8 +32,26 @@ describe('loadEnv', () => {
         ...base,
         NODE_ENV: 'production',
         COOKIE_DOMAIN: '.openchess.app',
+        PUBLIC_URL: 'https://openchess.app',
       }).COOKIE_DOMAIN,
     ).toBe('.openchess.app');
+  });
+
+  it('en producción exige PUBLIC_URL con https', () => {
+    expect(() =>
+      loadEnv({
+        ...base,
+        NODE_ENV: 'production',
+        COOKIE_DOMAIN: '.openchess.app',
+      }),
+    ).toThrow('PUBLIC_URL');
+  });
+
+  it('las cookies van con Secure en producción o si el sitio es https, aunque falte NODE_ENV', () => {
+    expect(secureCookies(loadEnv(base))).toBe(false);
+    expect(
+      secureCookies(loadEnv({ ...base, PUBLIC_URL: 'https://openchess.app' })),
+    ).toBe(true);
   });
 
   it('rechaza un JWT_SECRET corto y lee TRUST_PROXY', () => {
