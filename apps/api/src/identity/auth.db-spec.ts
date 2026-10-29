@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -6,6 +6,7 @@ import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
 import { configureApp } from '../app/configure-app';
+import { REFRESH_GRACE_MS } from './auth.service';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
 
 config({ path: '../../.env', quiet: true });
@@ -23,6 +24,14 @@ function cookie(res: request.Response, name: string): string {
   const raw = res.headers['set-cookie'] as unknown as string[] | undefined;
   const line = raw?.find((c) => c.startsWith(`${name}=`));
   return line?.split(';')[0].slice(name.length + 1) ?? '';
+}
+
+/** Como si el token se hubiera rotado hace más que la gracia. */
+async function agoGrace(token: string): Promise<void> {
+  await base.refreshToken.update({
+    where: { tokenHash: createHash('sha256').update(token).digest('hex') },
+    data: { rotatedAt: new Date(Date.now() - REFRESH_GRACE_MS - 1000) },
+  });
 }
 
 function post(path: string) {
@@ -114,7 +123,8 @@ describe('auth', () => {
     expect(newRefresh).not.toBe('');
     expect(newRefresh).not.toBe(refreshToken);
 
-    // Alguien reusa el token viejo (por ejemplo, uno robado)
+    // Alguien reusa el token viejo (por ejemplo, uno robado), pasada la gracia
+    await agoGrace(refreshToken);
     await post('refresh')
       .set('Cookie', `${REFRESH_COOKIE}=${refreshToken}`)
       .expect(401);
@@ -162,22 +172,39 @@ describe('auth', () => {
     }
   });
 
-  it('si dos requests rotan el mismo refresh a la vez, solo una gana y la familia cae', async () => {
+  it('dos pestañas que refrescan a la vez siguen con sesión', async () => {
     const res = await post('login')
       .send({ email, password: secret })
       .expect(200);
     const rt = cookie(res, REFRESH_COOKIE);
 
-    const [a, b] = await Promise.all(
+    const both = await Promise.all(
       [0, 1].map(() =>
         post('refresh').set('Cookie', `${REFRESH_COOKIE}=${rt}`),
       ),
     );
-    expect([a.status, b.status].sort()).toEqual([200, 401]);
-    const winner = a.status === 200 ? a : b;
-    await post('refresh')
-      .set('Cookie', `${REFRESH_COOKIE}=${cookie(winner, REFRESH_COOKIE)}`)
-      .expect(401);
+    expect(both.map((r) => r.status)).toEqual([200, 200]);
+    // Y las dos sesiones nuevas siguen sirviendo.
+    for (const r of both) {
+      await post('refresh')
+        .set('Cookie', `${REFRESH_COOKIE}=${cookie(r, REFRESH_COOKIE)}`)
+        .expect(200);
+    }
+  });
+
+  it('después de un logout, el token recién rotado ya no sirve aunque esté en la gracia', async () => {
+    const res = await post('login')
+      .send({ email, password: secret })
+      .expect(200);
+    const rt = cookie(res, REFRESH_COOKIE);
+    const rotated = await post('refresh')
+      .set('Cookie', `${REFRESH_COOKIE}=${rt}`)
+      .expect(200);
+
+    await post('logout')
+      .set('Cookie', `${REFRESH_COOKIE}=${cookie(rotated, REFRESH_COOKIE)}`)
+      .expect(204);
+    await post('refresh').set('Cookie', `${REFRESH_COOKIE}=${rt}`).expect(401);
   });
 
   it('logout revoca la sesión', async () => {

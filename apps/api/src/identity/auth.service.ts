@@ -16,6 +16,11 @@ import {
 } from './crypto';
 
 export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Un token recién rotado sigue sirviendo estos segundos: dos pestañas que
+ * refrescan a la vez mandan el mismo token, y la segunda no debe cerrar la sesión.
+ */
+export const REFRESH_GRACE_MS = 10_000;
 
 export interface Session {
   accessToken: string;
@@ -93,8 +98,9 @@ export class AuthService {
   }
 
   /**
-   * Rota el refresh token. Si llega uno ya usado, alguien lo copió: se revoca
-   * toda la familia y las dos partes tienen que volver a iniciar sesión.
+   * Rota el refresh token. Si llega uno ya usado (pasada la gracia), alguien lo
+   * copió: se revoca toda la familia y las dos partes tienen que volver a
+   * iniciar sesión.
    */
   async refresh(refreshToken: string | undefined): Promise<Session> {
     if (!refreshToken) throw new UnauthorizedException();
@@ -103,28 +109,55 @@ export class AuthService {
       where: { tokenHash: sha256(refreshToken) },
     });
     if (!stored) throw new UnauthorizedException();
+    if (stored.expiresAt <= new Date()) throw new UnauthorizedException();
 
     if (stored.revokedAt) {
+      if (await this.inGrace(stored)) {
+        return this.issueSession(stored.userId, stored.familyId);
+      }
       await this.revokeFamily(stored.familyId);
       throw new UnauthorizedException();
     }
-    if (stored.expiresAt <= new Date()) throw new UnauthorizedException();
 
     // Primero se emite el nuevo: si eso falla, el viejo sigue sirviendo y nadie
     // pierde la sesión por un error pasajero de la BD.
     const session = await this.issueSession(stored.userId, stored.familyId);
 
-    // Condicionado a revokedAt null: si dos requests rotan a la vez, solo una gana.
-    // La que pierde revoca la familia, incluido el token que acaba de emitir.
+    // Condicionado a revokedAt null: si dos requests rotan a la vez, solo una
+    // marca la rotación. La otra sigue si fue una rotación reciente (dos
+    // pestañas); si no, revoca la familia, incluido el token que acaba de emitir.
+    const now = new Date();
     const { count } = await tokens.updateMany({
       where: { id: stored.id, revokedAt: null },
-      data: { revokedAt: new Date() },
+      data: { revokedAt: now, rotatedAt: now },
     });
     if (count === 0) {
+      const current = await tokens.findUnique({ where: { id: stored.id } });
+      if (current && (await this.inGrace(current))) return session;
       await this.revokeFamily(stored.familyId);
       throw new UnauthorizedException();
     }
     return session;
+  }
+
+  /**
+   * Rotado hace menos de REFRESH_GRACE_MS y con la familia viva: un logout o
+   * un robo detectado revocan la familia entera, y entonces no hay gracia.
+   */
+  private async inGrace(token: {
+    familyId: string;
+    rotatedAt: Date | null;
+  }): Promise<boolean> {
+    if (!token.rotatedAt) return false;
+    if (Date.now() - token.rotatedAt.getTime() > REFRESH_GRACE_MS) return false;
+    const alive = await this.prisma.client.refreshToken.count({
+      where: {
+        familyId: token.familyId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    return alive > 0;
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {
