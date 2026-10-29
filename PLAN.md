@@ -133,10 +133,9 @@ Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de
 
 ## Pendientes del QA (2026-10-29)
 
-| Sev. | Pendiente                                                                                                                                   |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Bajo | Cada consulta va en su propia transacción con el contexto de RLS (dos sentencias). Si pesa, fijar el contexto una vez por request           |
-| Bajo | Si dos personas aceptan invitaciones a la vez con el club en 14 miembros, puede quedar en 16: el tope del plan gratis se revisa sin bloqueo |
+| Sev. | Pendiente                                                                                                                         |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Bajo | Cada consulta va en su propia transacción con el contexto de RLS (dos sentencias). Si pesa, fijar el contexto una vez por request |
 
 ## Pendientes de la Fase 2
 

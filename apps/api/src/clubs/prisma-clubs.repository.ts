@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ClubError,
+  memberLimitError,
   type ClubRole,
   type ClubsRepository,
   type Invitation,
@@ -35,6 +36,10 @@ function toRole(row: RoleRow): ClubRole {
  */
 export function isLastOwnerError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('LAST_OWNER');
+}
+
+function isMemberLimitError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('MEMBER_LIMIT');
 }
 
 function lastOwner(error: unknown): never {
@@ -141,13 +146,26 @@ export class PrismaClubsRepository
     });
   }
 
-  async addMember(clubId: string, member: Member): Promise<void> {
-    await this.db.membership
-      .create({ data: { clubId, ...member } })
+  async addMember(
+    clubId: string,
+    member: Member,
+    maxMembers: number | null,
+  ): Promise<void> {
+    // El trigger memberships_member_limit (migración member_limit) lee el tope
+    // de esta misma transacción y lo hace cumplir aunque entren dos a la vez.
+    const max = maxMembers === null ? '' : String(maxMembers);
+    await this.prisma
+      .transaction((tx) => [
+        tx.$executeRaw`SELECT set_config('app.max_members', ${max}, TRUE)`,
+        tx.membership.create({ data: { clubId, ...member } }),
+      ])
       .catch((error: unknown) => {
         // Dos invitaciones aceptadas a la vez por la misma persona: entra una sola vez.
         if ((error as { code?: string }).code === 'P2002') {
           throw new ClubError('ALREADY_MEMBER', 'Ya eres miembro de este club');
+        }
+        if (maxMembers !== null && isMemberLimitError(error)) {
+          throw memberLimitError(maxMembers);
         }
         throw error;
       });

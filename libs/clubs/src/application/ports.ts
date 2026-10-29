@@ -38,7 +38,15 @@ export interface ClubsRepository {
   listForUser(userId: string): Promise<MyClub[]>;
   members(clubId: string): Promise<MemberRow[]>;
   findMember(clubId: string, userId: string): Promise<Member | null>;
-  addMember(clubId: string, member: Member): Promise<void>;
+  /**
+   * `maxMembers` es el tope del plan (null: sin tope). El repositorio lo hace
+   * cumplir aunque dos personas entren a la vez.
+   */
+  addMember(
+    clubId: string,
+    member: Member,
+    maxMembers: number | null,
+  ): Promise<void>;
   updateRole(clubId: string, userId: string, roleId: string): Promise<void>;
   removeMember(clubId: string, userId: string): Promise<void>;
 }

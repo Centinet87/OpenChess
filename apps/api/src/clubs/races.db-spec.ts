@@ -143,3 +143,68 @@ describe('invitaciones', () => {
     ).toBe(1);
   });
 });
+
+describe('tope del plan gratis', () => {
+  const full = `lleno-${run}`;
+  const fillerEmails: string[] = [];
+
+  afterAll(async () => {
+    await base.club.deleteMany({ where: { slug: full } });
+    await base.user.deleteMany({ where: { email: { in: fillerEmails } } });
+  });
+
+  it('con un lugar libre y dos invitaciones aceptadas a la vez, entra una sola persona', async () => {
+    const club = await base.club.create({
+      data: { slug: full, name: 'Lleno' },
+    });
+    // Dueña y 13 de relleno: 14 de los 15 del plan gratis.
+    const filler = [];
+    for (let i = 0; i < 13; i++) {
+      const email = `relleno-${i}-${run}@test.local`;
+      fillerEmails.push(email);
+      filler.push(
+        await base.user.create({
+          data: { email, passwordHash: 'x', displayName: `R${i}` },
+        }),
+      );
+    }
+    await seedMembers(base, [
+      { clubId: club.id, userId: users.ana.id, role: 'Admin' },
+      ...filler.map((u) => ({
+        clubId: club.id,
+        userId: u.id,
+        role: 'Alumno' as const,
+      })),
+    ]);
+    const alumno = await base.clubRole.findFirstOrThrow({
+      where: { clubId: club.id, name: 'Alumno' },
+    });
+
+    const tokens: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const res = await request(app.getHttpServer())
+        .post('/api/club/invitations')
+        .set('Cookie', users.ana.cookie)
+        .set('Host', `${full}.localhost`)
+        .send({ roleId: alumno.id })
+        .expect(201);
+      tokens.push(res.body.token);
+    }
+
+    const results = await Promise.all(
+      (['beto', 'caro'] as const).map((name, i) =>
+        request(app.getHttpServer())
+          .post('/api/club/invitations/accept')
+          .set('Cookie', users[name].cookie)
+          .set('Host', `${full}.localhost`)
+          .send({ token: tokens[i] })
+          .then((r) => ({ status: r.status, code: r.body.code })),
+      ),
+    );
+    expect(results.map((r) => r.status).sort()).toEqual([200, 402]);
+    expect(results.find((r) => r.status === 402)?.code).toBe('MEMBER_LIMIT');
+    expect(await base.membership.count({ where: { clubId: club.id } })).toBe(
+      15,
+    );
+  });
+});

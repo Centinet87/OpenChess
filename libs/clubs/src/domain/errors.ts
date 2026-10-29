@@ -24,3 +24,11 @@ export class ClubError extends Error {
     this.name = 'ClubError';
   }
 }
+
+/** El plan del club está lleno. */
+export function memberLimitError(max: number): ClubError {
+  return new ClubError(
+    'MEMBER_LIMIT',
+    `El club llegó al máximo de ${max} miembros de su plan`,
+  );
+}

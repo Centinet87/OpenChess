@@ -1,5 +1,5 @@
 import { newClub } from '../domain/club.js';
-import { ClubError } from '../domain/errors.js';
+import { ClubError, memberLimitError } from '../domain/errors.js';
 import { assertAcceptable, invitationExpiry } from '../domain/invitation.js';
 import { RoleBook } from '../domain/role-book.js';
 import { defaultRoles, type ClubRole, type RoleInput } from '../domain/role.js';
@@ -156,17 +156,18 @@ export class ClubsUseCases {
     const existing = await this.deps.clubs.findMember(clubId, userId);
     assertAcceptable(invitation, now, existing !== null);
 
-    await this.assertRoomFor(
+    const max = await this.assertRoomFor(
       clubId,
       (await this.deps.clubs.members(clubId)).length,
     );
     if (!(await this.deps.invitations.markAccepted(invitation.id, now))) {
       throw new ClubError('INVITATION_USED', 'Esta invitación ya se usó');
     }
-    await this.deps.clubs.addMember(clubId, {
-      userId,
-      roleId: invitation.roleId,
-    });
+    await this.deps.clubs.addMember(
+      clubId,
+      { userId, roleId: invitation.roleId },
+      max,
+    );
     const role = (await this.book(clubId)).require(invitation.roleId);
     return { role: summary(role) };
   }
@@ -192,15 +193,19 @@ export class ClubsUseCases {
     await this.deps.clubs.removeMember(clubId, targetId);
   }
 
-  /** El plan gratis tiene tope: si está lleno no se invita ni entra nadie más. */
-  private async assertRoomFor(clubId: string, members: number): Promise<void> {
-    const max = await this.deps.limits?.maxMembers(clubId);
-    if (max != null && members >= max) {
-      throw new ClubError(
-        'MEMBER_LIMIT',
-        `El club llegó al máximo de ${max} miembros de su plan`,
-      );
+  /**
+   * El plan gratis tiene tope: si está lleno no se invita ni entra nadie más.
+   * Devuelve el tope (null: sin tope).
+   */
+  private async assertRoomFor(
+    clubId: string,
+    members: number,
+  ): Promise<number | null> {
+    const max = (await this.deps.limits?.maxMembers(clubId)) ?? null;
+    if (max !== null && members >= max) {
+      throw memberLimitError(max);
     }
+    return max;
   }
 
   private async book(clubId: string): Promise<RoleBook> {
