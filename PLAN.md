@@ -132,12 +132,10 @@ Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de
 
 ## Pendientes del QA (2026-10-29)
 
-| Sev.  | Pendiente                                                                                                                           |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Medio | `withTenantContext` hace 3 sentencias por consulta. Fijar el contexto una vez por transacción cuando haya transacciones por request |
-| Bajo  | Mapear P2002 a `ALREADY_MEMBER` al aceptar una invitación                                                                           |
-| Bajo  | Job que borre refresh tokens vencidos                                                                                               |
-| Bajo  | Tests del rate limit, de `X-Forwarded-Host` y de las carreras                                                                       |
+| Sev. | Pendiente                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bajo | Cada consulta va en su propia transacción con el contexto de RLS (dos sentencias). Si pesa, fijar el contexto una vez por request           |
+| Bajo | Si dos personas aceptan invitaciones a la vez con el club en 14 miembros, puede quedar en 16: el tope del plan gratis se revisa sin bloqueo |
 
 ## Pendientes de la Fase 2
 
