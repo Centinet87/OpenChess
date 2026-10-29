@@ -32,7 +32,13 @@ const fillerEmails: string[] = [];
 class FakeGateway implements PaymentGateway {
   readonly provider = 'mercadopago';
   remote = new Map<string, ProviderSubscription>();
-  async createSubscription(input: { clubId: string; payerEmail: string }) {
+  backUrls: string[] = [];
+  async createSubscription(input: {
+    clubId: string;
+    payerEmail: string;
+    backUrl: string;
+  }) {
+    this.backUrls.push(input.backUrl);
     const subscription: ProviderSubscription = {
       id: `pre-${run}-${this.remote.size + 1}`,
       status: 'pending',
@@ -167,6 +173,10 @@ describe('planes', () => {
     await as('beto').post('/club/plan/checkout').expect(403);
     const res = await as('ana').post('/club/plan/checkout').expect(200);
     expect(res.body.checkoutUrl).toContain('mercadopago.cl');
+    // Después de pagar, vuelve a la página del plan en el subdominio del club.
+    expect(gateway.backUrls.at(-1)).toMatch(
+      new RegExp(`^https?://${slug}\\.[^/]+/plan$`),
+    );
     subscriptionId = [...gateway.remote.keys()][0];
     expect(gateway.remote.get(subscriptionId)).toMatchObject({
       clubId,

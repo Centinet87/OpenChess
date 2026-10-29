@@ -5,6 +5,8 @@ declare module 'nestjs-cls' {
   interface ClsStore {
     /** Club del subdominio, antes de comprobar la membresía (TenantMiddleware). */
     requestedClubId: string;
+    /** Subdominio del club de la request (TenantMiddleware). */
+    clubSlug: string;
     /** Club que usa RLS, fijado por ClubMemberGuard. */
     clubId: string;
     /** Usuario autenticado, fijado por AuthGuard. */

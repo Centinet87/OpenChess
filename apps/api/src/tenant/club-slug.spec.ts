@@ -1,4 +1,4 @@
-import { resolveClubSlug } from './club-slug';
+import { clubOrigin, resolveClubSlug } from './club-slug';
 
 describe('resolveClubSlug', () => {
   it.each([
@@ -21,5 +21,16 @@ describe('resolveClubSlug', () => {
     ['evilopenchess.app'],
   ])('%s no es un club', (host) => {
     expect(resolveClubSlug(host, 'openchess.app')).toBeNull();
+  });
+});
+
+describe('clubOrigin', () => {
+  it('pone el slug delante del dominio y conserva el esquema y el puerto', () => {
+    expect(clubOrigin('https://openchess.app', 'miclub')).toBe(
+      'https://miclub.openchess.app',
+    );
+    expect(clubOrigin('http://localhost:3000/', 'sur')).toBe(
+      'http://sur.localhost:3000',
+    );
   });
 });

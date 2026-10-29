@@ -19,6 +19,7 @@ import { ClsService } from 'nestjs-cls';
 import { z } from 'zod';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { ZodPipe } from '../common/zod.pipe';
+import { clubOrigin } from '../tenant/club-slug';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AuthGuard } from '../identity/auth.guard';
@@ -48,7 +49,7 @@ export class PlanController {
     };
   }
 
-  /** Devuelve el link de pago de Mercado Pago. Al volver, el front va a /plan. */
+  /** Devuelve el link de pago de Mercado Pago. Al pagar, vuelve a /plan del club. */
   @Post('checkout')
   @HttpCode(200)
   async checkout(): Promise<CheckoutView> {
@@ -58,7 +59,7 @@ export class PlanController {
       { isOwner: this.cls.get('role').isOwner },
       this.cls.get('clubId'),
       email,
-      `${this.env.PUBLIC_URL}/plan`,
+      `${clubOrigin(this.env.PUBLIC_URL, this.cls.get('clubSlug'))}/plan`,
     );
   }
 

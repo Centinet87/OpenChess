@@ -53,6 +53,7 @@ export class TenantMiddleware implements NestMiddleware {
     if (!clubId) throw new NotFoundException('Club no encontrado');
 
     this.cls.set('requestedClubId', clubId);
+    this.cls.set('clubSlug', slug);
     next();
   }
 

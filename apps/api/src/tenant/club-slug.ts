@@ -18,3 +18,13 @@ export function resolveClubSlug(
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
   return RESERVED_SUBDOMAINS.has(slug) ? null : slug;
 }
+
+/**
+ * Origen del sitio de un club, a partir de la URL pública del front:
+ * ("https://openchess.app", "miclub") → "https://miclub.openchess.app".
+ */
+export function clubOrigin(publicUrl: string, slug: string): string {
+  const url = new URL(publicUrl);
+  url.hostname = `${slug}.${url.hostname}`;
+  return url.origin;
+}
