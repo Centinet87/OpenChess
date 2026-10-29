@@ -75,6 +75,12 @@
           "^generate",
           "^migrate-deploy"
         ]
+      },
+      "seed-demo": {
+        "command": "node scripts/seed-demo.mjs",
+        "options": {
+          "cwd": "{projectRoot}"
+        }
       }
     }
   },
