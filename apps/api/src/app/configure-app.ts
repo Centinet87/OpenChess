@@ -8,6 +8,8 @@ import type { Env } from '../config/env';
 export function configureApp(app: NestExpressApplication): void {
   const env = app.get<Env>(ENV);
   app.setGlobalPrefix('api');
+  // No anunciar el framework en cada respuesta.
+  app.disable('x-powered-by');
   app.use(cookieParser());
   // req.ip toma la IP del cliente saltando esta cantidad de proxies (ver TRUST_PROXY en env.ts).
   app.set('trust proxy', env.TRUST_PROXY);
