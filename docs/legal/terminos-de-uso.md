@@ -82,7 +82,7 @@ Nada de esto limita los derechos que te da la Ley N° 19.496 como consumidor.
 
 ## 10. Término
 
-Puedes dejar de usar OpenChess y pedir que eliminemos tu cuenta cuando quieras (ver la [Política de privacidad](./politica-de-privacidad.md)). Podemos cerrar una cuenta o un club que infrinja gravemente estos términos, avisando cuando sea posible.
+Puedes dejar de usar OpenChess y eliminar tu cuenta cuando quieras desde su configuración (ver la [Política de privacidad](./politica-de-privacidad.md)). Si eres el único dueño de un club con más miembros, antes tienes que nombrar a otro dueño; y si el club tiene el plan Pro, cancelarlo. Podemos cerrar una cuenta o un club que infrinja gravemente estos términos, avisando cuando sea posible.
 
 ## 11. Cambios a estos términos
 

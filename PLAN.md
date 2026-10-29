@@ -109,7 +109,8 @@ Se usan donde el problema los pide, no como meta:
 
 ### Fase 4: Lanzamiento (media) — planes y cobro hechos en el backend; faltan las páginas
 
-- Página pública, términos de uso y política de privacidad.
+- Página pública, términos de uso y política de privacidad (borradores en `docs/legal`, falta la revisión legal).
+- Derechos sobre los datos: `GET /auth/account/export` descarga todo en JSON y `DELETE /auth/account` (con la contraseña) elimina la cuenta. La fila del usuario queda anónima ("Cuenta eliminada") para no romper las partidas ni el historial de los rivales; se borran membresías, ratings, cuentas vinculadas, FIDE ID y sesiones. No se puede con una partida en curso, siendo el único dueño de un club con más miembros, o con un plan Pro activo en un club donde se está solo (ese club se borra con la cuenta).
 - Plan gratis con límite de 15 miembros y plan Pro sin límite, con suscripción mensual de Mercado Pago (`libs/billing`). Lo paga y lo cancela solo el dueño del club. El club pasa a Pro cuando Mercado Pago confirma el pago: el webhook se valida con su firma y el estado se consulta a la API, nunca se confía en el aviso. Si un club Pro cancela con más de 15 miembros, nadie sale, pero no entran nuevos.
 - `GET /club/plan`, `POST /club/plan/checkout` (devuelve el link de pago), `POST /club/plan/cancel` y `POST /billing/mercadopago/webhook`.
 

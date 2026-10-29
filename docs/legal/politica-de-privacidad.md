@@ -66,7 +66,7 @@ También podemos entregar datos cuando lo exija la ley o una autoridad competent
 
 ## 6. Cuánto tiempo los guardamos
 
-- **Cuenta:** mientras la tengas activa. Al eliminarla, se borran también tus membresías, partidas, ratings, cuentas vinculadas y FIDE ID en los clubes.
+- **Cuenta:** mientras la tengas activa. Al eliminarla se borran tu email, tu nombre, tu contraseña, tus membresías, tus ratings y su historial, tus cuentas vinculadas y tu FIDE ID en los clubes. Las partidas que jugaste quedan en el historial de tus rivales, pero a nombre de "Cuenta eliminada", sin nada que te identifique. Si eras el único miembro de un club, el club se borra contigo.
 - **Sesiones:** los tokens de sesión vencen a los 30 días.
 - **Links enviados por email:** vencen a las 24 horas (confirmar el email) o a 1 hora (cambiar la contraseña), y sirven una sola vez.
 - **Registros del servidor:** [PLAZO, p. ej. 30 días].
@@ -104,7 +104,7 @@ Puedes pedirnos:
 - **Portabilidad:** recibir tus datos en un formato que puedas llevar a otro servicio.
 - **Bloqueo:** que se suspenda temporalmente su tratamiento.
 
-Escríbenos a [EMAIL DE PRIVACIDAD] desde el email de tu cuenta. Responderemos dentro del plazo legal [VERIFICAR PLAZO EN LA LEY N° 21.719]. Si no quedas conforme, puedes reclamar ante la Agencia de Protección de Datos Personales.
+Puedes descargar tus datos (en un archivo JSON) y eliminar tu cuenta tú mismo desde la configuración de tu cuenta. Para lo demás, escríbenos a [EMAIL DE PRIVACIDAD] desde el email de tu cuenta. Responderemos dentro del plazo legal [VERIFICAR PLAZO EN LA LEY N° 21.719]. Si no quedas conforme, puedes reclamar ante la Agencia de Protección de Datos Personales.
 
 Para datos que ingresó un club (por ejemplo, tu rol o tu FIDE ID), también puedes pedírselo directamente al club.
 

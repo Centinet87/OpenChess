@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   HttpCode,
   Inject,
   Post,
@@ -18,12 +20,15 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AuthGuard } from './auth.guard';
 import { AccountEmailsService } from './account-emails.service';
+import { AccountService, type AccountExport } from './account.service';
 import {
+  deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
   resetPasswordSchema,
   tokenSchema,
+  type DeleteAccountInput,
   type ForgotPasswordInput,
   type LoginInput,
   type RegisterInput,
@@ -39,6 +44,8 @@ import {
 
 // Login y registro: 5 intentos por minuto por IP y email (ver AppThrottlerGuard).
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
+// Descargar los datos o eliminar la cuenta: piden sesión (y la contraseña, al eliminar).
+const ACCOUNT = { default: { limit: 10, ttl: 60_000 } };
 
 /** cookie-parser convierte en objeto una cookie que empieza con "j:": solo sirve un string. */
 function refreshCookie(req: Request): string | undefined {
@@ -51,6 +58,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly emails: AccountEmailsService,
+    private readonly account: AccountService,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -151,5 +159,28 @@ export class AuthController {
   @UseGuards(AuthGuard)
   me(): Promise<Profile> {
     return this.auth.profile(this.cls.get('userId'));
+  }
+
+  /** Todos los datos de la persona en JSON (acceso y portabilidad). */
+  @Get('account/export')
+  @Throttle(ACCOUNT)
+  @UseGuards(AuthGuard)
+  @Header('Content-Disposition', 'attachment; filename="openchess-datos.json"')
+  @Header('Cache-Control', 'no-store')
+  exportAccount(): Promise<AccountExport> {
+    return this.account.export(this.cls.get('userId'));
+  }
+
+  /** Elimina la cuenta (pide la contraseña) y cierra la sesión. */
+  @Delete('account')
+  @HttpCode(204)
+  @Throttle(ACCOUNT)
+  @UseGuards(AuthGuard)
+  async deleteAccount(
+    @Body(new ZodPipe(deleteAccountSchema)) body: DeleteAccountInput,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.account.delete(this.cls.get('userId'), body.password);
+    clearSessionCookies(res, this.env);
   }
 }

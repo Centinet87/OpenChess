@@ -16,10 +16,5 @@ Lo que está entre corchetes: razón social, RUT, dirección, emails de contacto
 
 ## Pendiente en el producto
 
-La política promete cosas que hoy el backend todavía no tiene:
-
-- **Eliminar la cuenta desde el servicio.** Hoy no hay endpoint. Ojo: borrar un usuario borra también sus partidas, lo que afecta el historial de sus rivales.
-- **Descargar los datos propios** (portabilidad).
+- **Eliminar la cuenta** (`DELETE /api/auth/account`, pide la contraseña) y **descargar los datos propios** (`GET /api/auth/account/export`) ya están en el backend; faltan sus botones en el front. La cuenta no se borra: se deja anónima, para que las partidas y el historial de los rivales sigan cuadrando.
 - **Plazo de los registros del servidor.** Hay que definirlo y configurarlo en el hosting.
-
-Mientras tanto, estas solicitudes se pueden atender por email.

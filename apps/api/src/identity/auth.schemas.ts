@@ -31,6 +31,11 @@ export const tokenSchema = z.object({ token });
 export const forgotPasswordSchema = z.object({ email });
 export const resetPasswordSchema = z.object({ token, password });
 
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1).max(128),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
 export type TokenInput = z.infer<typeof tokenSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

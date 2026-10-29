@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { AccountEmailsService } from './account-emails.service';
+import { AccountService } from './account.service';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -24,6 +25,7 @@ import { LogMailer, MAILER, ResendMailer, type Mailer } from './mailer';
     AuthService,
     AuthGuard,
     AccountEmailsService,
+    AccountService,
     {
       provide: MAILER,
       inject: [ENV],
