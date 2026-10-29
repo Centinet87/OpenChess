@@ -53,6 +53,10 @@ npx nx run-many -t serve dev -p api web
 | `npm run check`                | Formato, lint, typecheck, test, test-db y build de lo que cambió respecto a `origin/desa`. Corre antes de cada push. Necesita Docker arriba |
 | `npx nx graph`                 | Muestra cómo dependen los proyectos entre sí                                                                                                |
 
+## Despliegue
+
+El front va a Vercel y la API a Fly.io en Docker, cada uno por su lado. Ver [docs/despliegue.md](docs/despliegue.md).
+
 ## Licencia
 
 [MIT](LICENSE)

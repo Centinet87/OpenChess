@@ -1,0 +1,40 @@
+# API en Fly.io. Desde la raíz del repo: fly deploy
+# Guía completa en docs/despliegue.md.
+
+app = "openchess-api"
+primary_region = "scl"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[deploy]
+  # Antes de cada versión nueva; si falla, la versión anterior sigue andando.
+  release_command = "sh -c 'cd libs/database && npx prisma migrate deploy'"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3333"
+  APP_DOMAIN = "openchess.app"
+  COOKIE_DOMAIN = ".openchess.app"
+  PUBLIC_URL = "https://openchess.app"
+  # Vercel y el proxy de Fly
+  TRUST_PROXY = "2"
+
+[http_service]
+  internal_port = 3333
+  force_https = true
+  # Los relojes de las partidas viven en memoria: una sola máquina, siempre prendida.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/api"
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
