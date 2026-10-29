@@ -17,7 +17,6 @@ import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module'
 import { RatingsModule } from '../ratings/ratings.module';
 import { TenantMiddleware } from '../tenant/tenant.middleware';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -33,7 +32,7 @@ import { AppService } from './app.service';
     LinkedAccountsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: AppThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

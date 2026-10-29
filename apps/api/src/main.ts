@@ -10,6 +10,9 @@ import type { Env } from './config/env';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   configureApp(app);
+  // Ante la señal de apagado de un deploy: deja de aceptar conexiones, termina
+  // los envíos de email pendientes y cierra la BD (los onModuleDestroy).
+  app.enableShutdownHooks();
   const port = app.get<Env>(ENV).PORT;
   await app.listen(port);
   // Set when Nx waits for this server to be ready

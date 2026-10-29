@@ -1,21 +1,28 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { ServiceUnavailableException } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { BASE_PRISMA } from '../infrastructure/prisma.module';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+
+async function controller(queryRaw: () => Promise<unknown>) {
+  const app = await Test.createTestingModule({
+    controllers: [AppController],
+    providers: [{ provide: BASE_PRISMA, useValue: { $queryRaw: queryRaw } }],
+  }).compile();
+  return app.get(AppController);
+}
 
 describe('AppController', () => {
-  let app: TestingModule;
-
-  beforeAll(async () => {
-    app = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
+  it('health responde ok si la BD contesta', async () => {
+    const app = await controller(async () => [{ '?column?': 1 }]);
+    await expect(app.health()).resolves.toEqual({ status: 'ok' });
   });
 
-  describe('getData', () => {
-    it('should return "Hello API"', () => {
-      const appController = app.get<AppController>(AppController);
-      expect(appController.getData()).toEqual({ message: 'Hello API' });
+  it('health responde 503 si la BD no contesta', async () => {
+    const app = await controller(async () => {
+      throw new Error('sin conexión');
     });
+    await expect(app.health()).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

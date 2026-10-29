@@ -41,7 +41,7 @@ Cada despliegue, desde la raíz del repo:
 fly deploy
 ```
 
-`release_command` corre las migraciones antes de cambiar de versión. Ajusta en `fly.toml` el nombre de la app, la región y los dominios si no son los de ejemplo.
+`release_command` corre las migraciones antes de cambiar de versión. Fly revisa `/api/health`, que responde 503 si la API no llega a la base de datos, y al apagar una versión le da 15 s para cerrar ordenadamente. Ajusta en `fly.toml` el nombre de la app, la región y los dominios si no son los de ejemplo.
 
 **Una sola máquina.** Los relojes de las partidas y la cola del ranking viven en memoria, así que `fly.toml` deja una máquina siempre prendida. No escales a más de una (`fly scale count 1`) hasta mover ese estado a Redis (ver los pendientes en `PLAN.md`).
 
