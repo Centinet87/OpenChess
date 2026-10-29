@@ -66,18 +66,14 @@
           }
         }
       },
-      "test": {
-        "options": {
-          "passWithNoTests": true
-        }
-      },
       "test-db": {
         "command": "jest --config jest.db.config.cts --runInBand",
         "options": {
           "cwd": "{projectRoot}"
         },
         "dependsOn": [
-          "^generate"
+          "^generate",
+          "^migrate-deploy"
         ]
       }
     }

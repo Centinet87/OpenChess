@@ -4,3 +4,6 @@
 /.nx/cache
 /.nx/workspace-data
 .nx/self-healing
+
+# Cliente Prisma generado
+libs/database/src/generated

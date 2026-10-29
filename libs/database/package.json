@@ -39,13 +39,20 @@
           "cwd": "{projectRoot}"
         }
       },
+      "migrate-deploy": {
+        "command": "prisma migrate deploy",
+        "options": {
+          "cwd": "{projectRoot}"
+        }
+      },
       "test-db": {
         "command": "jest --config jest.db.config.cts --runInBand",
         "options": {
           "cwd": "{projectRoot}"
         },
         "dependsOn": [
-          "generate"
+          "generate",
+          "migrate-deploy"
         ]
       },
       "typecheck": {
