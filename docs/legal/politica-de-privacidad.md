@@ -104,7 +104,7 @@ Puedes pedirnos:
 - **Portabilidad:** recibir tus datos en un formato que puedas llevar a otro servicio.
 - **Bloqueo:** que se suspenda temporalmente su tratamiento.
 
-Puedes descargar tus datos (en un archivo JSON) y eliminar tu cuenta tú mismo desde la configuración de tu cuenta. Para lo demás, escríbenos a [EMAIL DE PRIVACIDAD] desde el email de tu cuenta. Responderemos dentro del plazo legal [VERIFICAR PLAZO EN LA LEY N° 21.719]. Si no quedas conforme, puedes reclamar ante la Agencia de Protección de Datos Personales.
+Desde la configuración de tu cuenta puedes cambiar tu nombre visible y tu contraseña, descargar tus datos (en un archivo JSON) y eliminar tu cuenta. Para lo demás, escríbenos a [EMAIL DE PRIVACIDAD] desde el email de tu cuenta. Responderemos dentro del plazo legal [VERIFICAR PLAZO EN LA LEY N° 21.719]. Si no quedas conforme, puedes reclamar ante la Agencia de Protección de Datos Personales.
 
 Para datos que ingresó un club (por ejemplo, tu rol o tu FIDE ID), también puedes pedírselo directamente al club.
 

@@ -11,11 +11,9 @@ const email = z
 // Máximo de 128 para que nadie mande megas a argon2.
 export const password = z.string().min(10, 'Mínimo 10 caracteres').max(128);
 
-export const registerSchema = z.object({
-  email,
-  password,
-  displayName: z.string().trim().min(1).max(60),
-});
+const displayName = z.string().trim().min(1).max(60);
+
+export const registerSchema = z.object({ email, password, displayName });
 
 export const loginSchema = z.object({
   email,
@@ -35,7 +33,15 @@ export const deleteAccountSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
+export const updateProfileSchema = z.object({ displayName });
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: password,
+});
+
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type TokenInput = z.infer<typeof tokenSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

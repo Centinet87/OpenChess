@@ -39,3 +39,17 @@ export function resetPassword(to: string, name: string, link: string): Email {
     html: layout(lines, link, 'Cambiar contraseña'),
   };
 }
+
+export function passwordChanged(to: string, name: string, link: string): Email {
+  const lines = [
+    `Hola ${name}:`,
+    'La contraseña de tu cuenta en OpenChess acaba de cambiar y se cerraron tus otras sesiones.',
+    'Si no fuiste tú, entra y usa «¿Olvidaste tu contraseña?» para recuperar tu cuenta.',
+  ];
+  return {
+    to,
+    subject: 'Tu contraseña de OpenChess cambió',
+    text: `${lines.join('\n\n')}\n\n${link}`,
+    html: layout(lines, link, 'Ir a OpenChess'),
+  };
+}

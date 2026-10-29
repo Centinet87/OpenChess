@@ -6,6 +6,7 @@ import {
   Header,
   HttpCode,
   Inject,
+  Patch,
   Post,
   Req,
   Res,
@@ -22,18 +23,22 @@ import { AuthGuard } from './auth.guard';
 import { AccountEmailsService } from './account-emails.service';
 import { AccountService, type AccountExport } from './account.service';
 import {
+  changePasswordSchema,
   deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
   resetPasswordSchema,
   tokenSchema,
+  type ChangePasswordInput,
   type DeleteAccountInput,
   type ForgotPasswordInput,
   type LoginInput,
   type RegisterInput,
   type ResetPasswordInput,
   type TokenInput,
+  type UpdateProfileInput,
+  updateProfileSchema,
 } from './auth.schemas';
 import { AuthService, type Profile } from './auth.service';
 import {
@@ -159,6 +164,33 @@ export class AuthController {
   @UseGuards(AuthGuard)
   me(): Promise<Profile> {
     return this.auth.profile(this.cls.get('userId'));
+  }
+
+  /** Cambia el nombre visible. */
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  updateMe(
+    @Body(new ZodPipe(updateProfileSchema)) body: UpdateProfileInput,
+  ): Promise<Profile> {
+    return this.auth.updateProfile(this.cls.get('userId'), body);
+  }
+
+  /** Cambia la contraseña con la actual; las demás sesiones se cierran. */
+  @Post('change-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  async changePassword(
+    @Body(new ZodPipe(changePasswordSchema)) body: ChangePasswordInput,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const userId = this.cls.get('userId');
+    setSessionCookies(
+      res,
+      await this.auth.changePassword(userId, body),
+      this.env,
+    );
+    this.emails.queuePasswordChanged(userId);
   }
 
   /** Todos los datos de la persona en JSON (acceso y portabilidad). */

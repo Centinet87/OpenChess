@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { TenantPrisma } from '../infrastructure/prisma.module';
-import type { LoginInput, RegisterInput } from './auth.schemas';
+import type {
+  ChangePasswordInput,
+  LoginInput,
+  RegisterInput,
+  UpdateProfileInput,
+} from './auth.schemas';
 import {
   generateOpaqueToken,
   hashPassword,
@@ -182,6 +187,46 @@ export class AuthService {
     if (!user) throw new NotFoundException();
     const { emailVerifiedAt, ...rest } = user;
     return { ...rest, emailVerified: emailVerifiedAt !== null };
+  }
+
+  async updateProfile(
+    userId: string,
+    input: UpdateProfileInput,
+  ): Promise<Profile> {
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { displayName: input.displayName },
+    });
+    return this.profile(userId);
+  }
+
+  /**
+   * Cambia la contraseña sabiendo la actual. Cierra las demás sesiones (sus
+   * access tokens duran hasta 15 min más) y devuelve una nueva para esta.
+   */
+  async changePassword(
+    userId: string,
+    input: ChangePasswordInput,
+  ): Promise<Session> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (
+      !user ||
+      !(await verifyPassword(user.passwordHash, input.currentPassword))
+    ) {
+      throw new UnauthorizedException('Contraseña incorrecta');
+    }
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(input.newPassword) },
+    });
+    await this.prisma.client.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return this.issueSession(userId, randomUUID());
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {

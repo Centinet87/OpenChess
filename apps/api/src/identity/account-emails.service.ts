@@ -9,7 +9,7 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 import { generateOpaqueToken, hashPassword, sha256 } from './crypto';
-import { resetPassword, verifyEmail } from './emails';
+import { passwordChanged, resetPassword, verifyEmail } from './emails';
 import { MAILER, type Mailer } from './mailer';
 
 type Purpose = 'VERIFY_EMAIL' | 'RESET_PASSWORD';
@@ -78,6 +78,22 @@ export class AccountEmailsService implements OnModuleDestroy {
    */
   requestPasswordReset(email: string): void {
     this.track(this.sendPasswordReset(email), 'el cambio de contraseña');
+  }
+
+  /** Avisa que la contraseña cambió: si no fue la persona, se entera. */
+  queuePasswordChanged(userId: string): void {
+    this.track(this.sendPasswordChanged(userId), 'el aviso de contraseña');
+  }
+
+  private async sendPasswordChanged(userId: string): Promise<void> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, displayName: true },
+    });
+    if (!user) return;
+    await this.deliver(
+      passwordChanged(user.email, user.displayName, this.env.PUBLIC_URL),
+    );
   }
 
   private track(work: Promise<void>, what: string): void {
