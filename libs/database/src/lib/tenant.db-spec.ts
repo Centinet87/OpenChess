@@ -139,6 +139,26 @@ describe('RLS entre clubes', () => {
     expect(deleted.count).toBe(0);
   });
 
+  it('desde el club A no se pueden borrar ni cambiar las membresías propias del club B', async () => {
+    // userB entra al club A: ve su membresía del club B, pero no la puede tocar.
+    context = { clubId: clubA, userId: userB };
+    const deleted = await db.membership.deleteMany({
+      where: { clubId: clubB },
+    });
+    const updated = await db.membership.updateMany({
+      where: { clubId: clubB },
+      data: { roleId: roles.studentB },
+    });
+    expect(deleted.count).toBe(0);
+    expect(updated.count).toBe(0);
+
+    context = { userId: userB };
+    const withoutClub = await db.membership.deleteMany({
+      where: { userId: userB },
+    });
+    expect(withoutClub.count).toBe(0);
+  });
+
   it('sin contexto no se ve ninguna fila', async () => {
     context = {};
     expect(await db.membership.findMany()).toHaveLength(0);
