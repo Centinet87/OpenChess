@@ -1,5 +1,5 @@
 import { loadEnv, secureCookies } from '../config/env';
-import { throttleKey } from './throttler.guard';
+import { throttleKey, tokenSubject } from './throttler.guard';
 
 describe('throttleKey', () => {
   it('separa por email en login y registro', () => {
@@ -64,5 +64,24 @@ describe('loadEnv', () => {
       'JWT_SECRET',
     );
     expect(loadEnv({ ...base, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+  });
+});
+
+describe('tokenSubject', () => {
+  const jwt = (payload: object) =>
+    `x.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.y`;
+
+  it('saca el usuario del access token para contar por usuario', () => {
+    expect(tokenSubject({ cookies: { oc_at: jwt({ sub: 'u-1' }) } })).toBe(
+      'u-1',
+    );
+  });
+
+  it('sin cookie o con basura, no hay usuario', () => {
+    expect(tokenSubject({})).toBeUndefined();
+    expect(tokenSubject({ cookies: { oc_at: 'basura' } })).toBeUndefined();
+    expect(
+      tokenSubject({ cookies: { oc_at: jwt({ sub: 7 }) } }),
+    ).toBeUndefined();
   });
 });

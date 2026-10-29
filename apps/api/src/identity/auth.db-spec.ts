@@ -222,6 +222,21 @@ describe('auth', () => {
       .expect(401);
   });
 
+  it('login: aunque cambie la IP, al undécimo intento en 15 minutos responde 429', async () => {
+    // Con requests directas a la API, X-Forwarded-For lo pone el cliente: la IP no basta.
+    const target = `rotando-${email}`;
+    for (let i = 1; i <= 10; i++) {
+      await post('login')
+        .set('X-Forwarded-For', `203.0.113.${i}`)
+        .send({ email: target, password: wrongSecret })
+        .expect(401);
+    }
+    await post('login')
+      .set('X-Forwarded-For', '203.0.113.99')
+      .send({ email: target, password: wrongSecret })
+      .expect(429);
+  });
+
   it('logout revoca la sesión', async () => {
     const res = await post('login')
       .send({ email, password: secret })

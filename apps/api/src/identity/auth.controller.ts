@@ -16,6 +16,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
+import { perIpAndUser } from '../common/throttler.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
@@ -51,10 +52,11 @@ import {
   setSessionCookies,
 } from './cookies';
 
-// Login y registro: 5 intentos por minuto por IP y email (ver AppThrottlerGuard).
-const STRICT = { default: { limit: 5, ttl: 60_000 } };
+// Login y registro: 5 intentos por minuto por IP y email, y por usuario si hay
+// sesión (ver AppThrottlerGuard).
+const STRICT = perIpAndUser(5);
 // Descargar los datos o eliminar la cuenta: piden sesión (y la contraseña, al eliminar).
-const ACCOUNT = { default: { limit: 10, ttl: 60_000 } };
+const ACCOUNT = perIpAndUser(10);
 
 /** cookie-parser convierte en objeto una cookie que empieza con "j:": solo sirve un string. */
 function refreshCookie(req: Request): string | undefined {

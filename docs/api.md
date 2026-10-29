@@ -21,14 +21,17 @@ Los códigos de cada área están en `ClubErrorCode`, `GameErrorCode`, `LinkErro
 
 ### Límites
 
-| Qué                                                                | Límite                      |
-| ------------------------------------------------------------------ | --------------------------- |
-| Cualquier ruta                                                     | 100 por minuto por IP       |
-| Login, registro, links por email, cambios de contraseña o de email | 5 por minuto por IP y email |
-| Lo que consulta Lichess, Chess.com o FIDE                          | 5 por minuto                |
-| Descargar los datos o eliminar la cuenta                           | 10 por minuto               |
-| Asignar FIDE ID (quien gestiona FIDE)                              | 30 por minuto               |
-| Mensajes por el WebSocket                                          | 30 cada 10 s por conexión   |
+Las rutas con sesión cuentan por IP y también por usuario, así que cambiar de IP no da más intentos.
+
+| Qué                                                                       | Límite                                              |
+| ------------------------------------------------------------------------- | --------------------------------------------------- |
+| Cualquier ruta                                                            | 100 por minuto por IP, y 300 por minuto por usuario |
+| Login, registro, links por email, cambios de contraseña o de email        | 5 por minuto por IP y email                         |
+| Login, registro y recuperar la contraseña, por cuenta aunque cambie la IP | 10 cada 15 minutos                                  |
+| Lo que consulta Lichess, Chess.com o FIDE                                 | 5 por minuto                                        |
+| Descargar los datos o eliminar la cuenta                                  | 10 por minuto                                       |
+| Asignar FIDE ID (quien gestiona FIDE)                                     | 30 por minuto                                       |
+| Mensajes por el WebSocket                                                 | 30 cada 10 s por conexión                           |
 
 ## Cuenta y sesión
 

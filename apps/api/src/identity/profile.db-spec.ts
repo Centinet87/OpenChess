@@ -240,3 +240,37 @@ describe('cambiar el email', () => {
     }
   });
 });
+
+describe('límites por usuario', () => {
+  it('descargar los datos: aunque cambie la IP, al undécimo en un minuto responde 429', async () => {
+    const res = await api()
+      .post('/api/auth/register')
+      .send({
+        email: `limite-${randomUUID().slice(0, 8)}@test.local`,
+        password: randomUUID(),
+        displayName: 'L',
+      })
+      .expect(201);
+    const access = cookie(res, ACCESS_COOKIE);
+    try {
+      for (let i = 1; i <= 10; i++) {
+        await api()
+          .get('/api/auth/account/export')
+          .set('Cookie', access)
+          .set('X-Forwarded-For', `198.51.100.${i}`)
+          .expect(200);
+      }
+      await api()
+        .get('/api/auth/account/export')
+        .set('Cookie', access)
+        .set('X-Forwarded-For', '198.51.100.99')
+        .expect(429);
+    } finally {
+      const me = await base.user.findFirst({
+        where: { email: { startsWith: 'limite-' } },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (me) await base.user.delete({ where: { id: me.id } });
+    }
+  });
+});

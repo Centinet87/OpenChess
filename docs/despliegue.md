@@ -45,6 +45,8 @@ fly deploy
 
 **Una sola máquina.** Los relojes de las partidas y la cola del ranking viven en memoria, así que `fly.toml` deja una máquina siempre prendida. No escales a más de una (`fly scale count 1`) hasta mover ese estado a Redis (ver los pendientes en `PLAN.md`).
 
+**La IP de cada cliente.** Las requests que pasan por Vercel traen la IP real en `X-Forwarded-For`, y por eso `TRUST_PROXY=2`. La API también es pública para los WebSocket, y quien la llame directo puede inventar ese header. Por eso el límite por IP no basta: login, registro y recuperar la contraseña tienen además un límite por cuenta (10 cada 15 minutos), y las rutas con sesión cuentan también por usuario.
+
 ### Probar la imagen en local
 
 ```bash

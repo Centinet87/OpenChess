@@ -44,6 +44,7 @@ import { ClsService } from 'nestjs-cls';
 import { hasPermission } from '@openchess/clubs';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
+import { perIpAndUser } from '../common/throttler.guard';
 import { ZodPipe } from '../common/zod.pipe';
 import { ENV } from '../config/config.module';
 import { secureCookies, type Env } from '../config/env';
@@ -59,10 +60,10 @@ import {
 
 export const LICHESS_OAUTH = Symbol('LICHESS_OAUTH');
 
-// Cada uno pega en la plataforma externa: no más de 5 por minuto.
-const EXTERNAL = { default: { limit: 5, ttl: 60_000 } };
+// Cada uno pega en la plataforma externa: no más de 5 por minuto, por IP y por usuario.
+const EXTERNAL = perIpAndUser(5);
 // Quien gestiona FIDE puede asignar el de toda una academia de una vez.
-const FIDE_ADMIN = { default: { limit: 30, ttl: 60_000 } };
+const FIDE_ADMIN = perIpAndUser(30);
 
 /** Vincular las cuentas propias de Lichess y Chess.com. Vale en el dominio raíz. */
 @Controller('accounts')

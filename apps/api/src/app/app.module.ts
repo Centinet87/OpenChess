@@ -10,7 +10,11 @@ import { ClsModule } from 'nestjs-cls';
 import { ConfigModule } from '../config/config.module';
 import { ClubsModule } from '../clubs/clubs.module';
 import { GamesModule } from '../games/games.module';
-import { AppThrottlerGuard } from '../common/throttler.guard';
+import {
+  AppThrottlerGuard,
+  EMAIL_THROTTLER,
+  USER_THROTTLER,
+} from '../common/throttler.guard';
 import { IdentityModule } from '../identity/identity.module';
 import { PrismaModule } from '../infrastructure/prisma.module';
 import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
@@ -23,7 +27,11 @@ import { AppController } from './app.controller';
   imports: [
     ClsModule.forRoot({ global: true, middleware: { mount: true } }),
     // shortcut: el conteo vive en memoria, así que con varias instancias cada una cuenta por separado. Pasar a Redis al escalar.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 100 },
+      EMAIL_THROTTLER,
+      USER_THROTTLER,
+    ]),
     ConfigModule,
     PrismaModule,
     TenantModule,
