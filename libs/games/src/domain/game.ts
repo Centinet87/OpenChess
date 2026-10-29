@@ -81,6 +81,9 @@ export interface Outcome {
   readonly events: readonly GameEvent[];
 }
 
+/** Si las blancas no hacen su primera jugada en este tiempo, la partida se aborta sola. */
+export const FIRST_MOVE_MS = 30_000;
+
 const winnerResult = (winner: Color): Result =>
   winner === 'white' ? '1-0' : '0-1';
 
@@ -89,7 +92,7 @@ const winnerResult = (winner: Color): Result =>
  * Cada estado decide qué comandos acepta.
  */
 interface GameState {
-  accept(game: Game, color: Color): Outcome;
+  accept(game: Game, color: Color, now: number): Outcome;
   decline(game: Game, color: Color, now: number): Outcome;
   move(game: Game, color: Color, move: MoveInput, now: number): Outcome;
   resign(game: Game, color: Color, now: number): Outcome;
@@ -106,15 +109,19 @@ const notStarted = (): never => {
 
 /** Desafío enviado, esperando que el rival lo acepte. */
 const pending: GameState = {
-  accept(game, color) {
+  accept(game, color, now) {
     if (game.colorOf(game.snapshot.challengerId) === color) {
       throw new GameError(
         'CANNOT_ACCEPT_OWN',
         'No puedes aceptar tu propio desafío',
       );
     }
+    // El reloj no corre todavía; `since` marca desde cuándo esperan la primera jugada.
     return {
-      game: game.with({ status: 'in_progress' }),
+      game: game.with({
+        status: 'in_progress',
+        clock: { ...game.snapshot.clock, since: now },
+      }),
       events: [{ type: 'GameStarted', gameId: game.id }],
     };
   },
@@ -139,6 +146,7 @@ const inProgress: GameState = {
   accept: alreadyStarted,
   decline: alreadyStarted,
   move(game, color, move, now) {
+    if (game.firstMoveOverdue(now)) return game.finish(null, 'aborted', now);
     const board = game.board();
     if (board.turn() !== color[0]) {
       throw new GameError('NOT_YOUR_TURN', 'No es tu turno');
@@ -235,6 +243,7 @@ const inProgress: GameState = {
   },
 
   checkTimeout(game, now) {
+    if (game.firstMoveOverdue(now)) return game.finish(null, 'aborted', now);
     const flagged = game.clock.flagged(now);
     return flagged ? game.finishByTimeout(flagged, now) : { game, events: [] };
   },
@@ -378,8 +387,8 @@ export class Game {
     return null;
   }
 
-  accept(userId: string): Outcome {
-    return this.state.accept(this, this.player(userId));
+  accept(userId: string, now: number): Outcome {
+    return this.state.accept(this, this.player(userId), now);
   }
 
   decline(userId: string, now: number): Outcome {
@@ -413,6 +422,25 @@ export class Game {
   /** Lo llama el servidor cuando vence un reloj, aunque nadie haya jugado. */
   checkTimeout(now: number): Outcome {
     return this.state.checkTimeout(this, now);
+  }
+
+  /** Cuándo puede cerrarse sola (primera jugada o reloj); null si nada la cierra. */
+  nextDeadline(now: number): number | null {
+    if (this.snapshot.status !== 'in_progress') return null;
+    const { running, since } = this.snapshot.clock;
+    if (running) return now + this.clock.remaining(running, now);
+    return since !== null && this.plies === 0 ? since + FIRST_MOVE_MS : null;
+  }
+
+  /** @internal Aceptada, sin jugadas y ya pasó el plazo de la primera. */
+  firstMoveOverdue(now: number): boolean {
+    const { running, since } = this.snapshot.clock;
+    return (
+      running === null &&
+      since !== null &&
+      this.plies === 0 &&
+      now - since >= FIRST_MOVE_MS
+    );
   }
 
   /** @internal Lo usan los estados. */

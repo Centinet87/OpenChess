@@ -86,7 +86,7 @@ export class GamesUseCases {
     ) {
       throw new GameError('CHALLENGE_EXPIRED', 'Este desafío ya venció');
     }
-    return this.run(gameId, (g) => g.accept(userId));
+    return this.run(gameId, (g, now) => g.accept(userId, now));
   }
 
   decline(gameId: string, userId: string): Promise<GameSnapshot> {

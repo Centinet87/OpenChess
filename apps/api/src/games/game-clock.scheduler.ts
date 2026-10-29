@@ -12,8 +12,9 @@ import { GameEventsHub } from './game-events.hub';
 const SLACK_MS = 50;
 
 /**
- * Cierra por tiempo las partidas aunque nadie mande una jugada: agenda un timer
- * para el momento exacto en que se acaba el reloj que corre.
+ * Cierra las partidas aunque nadie mande una jugada: agenda un timer para el
+ * momento exacto en que se acaba el reloj que corre, o el plazo de la primera
+ * jugada (entonces se aborta).
  *
  * shortcut: los timers viven en memoria de esta instancia. Si el proceso se
  * reinicia se pierden, aunque la partida igual se cierra en la próxima jugada o
@@ -43,11 +44,14 @@ export class GameClockScheduler implements OnModuleInit, OnModuleDestroy {
 
   schedule(game: GameSnapshot): void {
     this.cancel(game.id);
-    const running = game.clock.running;
-    if (game.status !== 'in_progress' || !running) return;
+    const now = Date.now();
+    const deadline = Game.restore(game).nextDeadline(now);
+    if (deadline === null) return;
 
-    const remaining = Game.restore(game).clock.remaining(running, Date.now());
-    const timer = setTimeout(() => void this.fire(game), remaining + SLACK_MS);
+    const timer = setTimeout(
+      () => void this.fire(game),
+      Math.max(0, deadline - now) + SLACK_MS,
+    );
     timer.unref();
     this.timers.set(game.id, timer);
   }

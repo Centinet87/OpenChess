@@ -15,6 +15,8 @@ export interface GameView {
     readonly blackMs: number;
     readonly running: GameSnapshot['clock']['running'];
   };
+  /** Hasta cuándo (epoch ms del servidor) tienen las blancas para la primera jugada. */
+  readonly firstMoveBy: number | null;
   readonly drawOfferBy: GameSnapshot['drawOfferBy'];
   readonly result: GameSnapshot['result'];
   readonly termination: GameSnapshot['termination'];
@@ -38,6 +40,10 @@ export function toView(s: GameSnapshot, now: number): GameView {
       blackMs: game.clock.remaining('black', now),
       running: s.clock.running,
     },
+    firstMoveBy:
+      s.status === 'in_progress' && !s.clock.running && game.plies === 0
+        ? game.nextDeadline(now)
+        : null,
     drawOfferBy: s.drawOfferBy,
     result: s.result,
     termination: s.termination,

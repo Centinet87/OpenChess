@@ -1,11 +1,11 @@
 import { GameError } from './errors.js';
-import { Game, type MoveInput, type Outcome } from './game.js';
+import { FIRST_MOVE_MS, Game, type MoveInput, type Outcome } from './game.js';
 import { timeControl } from './time-control.js';
 
 const W = 'white-user';
 const B = 'black-user';
 
-function newGame(minutes = 5, increment = 0): Game {
+function newGame(minutes = 5, increment = 0, acceptedAt = 0): Game {
   return Game.challenge({
     id: 'g1',
     clubId: 'c1',
@@ -13,7 +13,7 @@ function newGame(minutes = 5, increment = 0): Game {
     blackId: B,
     challengerId: W,
     timeControl: timeControl(minutes, increment),
-  }).accept(B).game;
+  }).accept(B, acceptedAt).game;
 }
 
 const m = (uci: string): MoveInput => ({
@@ -68,11 +68,11 @@ describe('Game', () => {
     expect(errorCode(() => challenge.move(W, m('e2e4'), 0))).toBe(
       'NOT_STARTED',
     );
-    expect(errorCode(() => challenge.accept(W))).toBe('CANNOT_ACCEPT_OWN');
+    expect(errorCode(() => challenge.accept(W, 0))).toBe('CANNOT_ACCEPT_OWN');
 
-    const started = challenge.accept(B);
+    const started = challenge.accept(B, 0);
     expect(started.events).toEqual([{ type: 'GameStarted', gameId: 'g' }]);
-    expect(errorCode(() => started.game.accept(B))).toBe('ALREADY_STARTED');
+    expect(errorCode(() => started.game.accept(B, 0))).toBe('ALREADY_STARTED');
 
     expect(challenge.decline(W, 0).game.snapshot).toMatchObject({
       status: 'finished',
@@ -116,7 +116,7 @@ describe('Game', () => {
   });
 
   it('la primera jugada no se cronometra y después corre el reloj del rival', () => {
-    const { game } = play(newGame(1, 2), ['e2e4'], 50_000);
+    const { game } = play(newGame(1, 2, 50_000), ['e2e4'], 50_000);
     expect(game.snapshot.clock).toMatchObject({
       whiteMs: 60_000,
       running: 'black',
@@ -154,6 +154,29 @@ describe('Game', () => {
       result: '1/2-1/2',
       termination: 'insufficient_material',
     });
+  });
+
+  it('si las blancas no juegan en 30 s, la partida se aborta sola', () => {
+    const game = newGame(5, 0, 10_000);
+    expect(game.nextDeadline(10_000)).toBe(10_000 + FIRST_MOVE_MS);
+    expect(game.checkTimeout(10_000 + FIRST_MOVE_MS - 1).events).toEqual([]);
+
+    const aborted = game.checkTimeout(10_000 + FIRST_MOVE_MS);
+    expect(aborted.game.snapshot).toMatchObject({
+      status: 'finished',
+      termination: 'aborted',
+      result: null,
+    });
+    expect(aborted.game.nextDeadline(50_000)).toBeNull();
+
+    // Una jugada que llega tarde tampoco cuenta.
+    const late = game.move(W, m('e2e4'), 10_000 + FIRST_MOVE_MS);
+    expect(late.game.snapshot.termination).toBe('aborted');
+    expect(late.game.plies).toBe(0);
+
+    // Desde la primera jugada manda el reloj.
+    const started = game.move(W, m('e2e4'), 20_000).game;
+    expect(started.nextDeadline(20_000)).toBe(20_000 + 5 * 60_000);
   });
 
   it('abortar solo antes de que jueguen los dos', () => {
