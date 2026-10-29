@@ -13,7 +13,8 @@ import { resolveClubSlug } from './club-slug';
 
 /**
  * Anota qué club pide la request según el subdominio. Detrás del proxy de Next
- * el Host original llega en X-Forwarded-Host.
+ * el Host original llega en X-Forwarded-Host; solo se lee si hay proxies de
+ * confianza (TRUST_PROXY > 0), porque si no lo puede inventar el cliente.
  *
  * Solo deja `requestedClubId`. El `clubId` que usa RLS lo fija ClubMemberGuard
  * después de comprobar la membresía: si una ruta olvida el guard, RLS no
@@ -28,7 +29,9 @@ export class TenantMiddleware implements NestMiddleware {
   ) {}
 
   async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
-    const host = req.header('x-forwarded-host') ?? req.header('host');
+    const forwarded =
+      this.env.TRUST_PROXY > 0 ? req.header('x-forwarded-host') : undefined;
+    const host = forwarded ?? req.header('host');
     const slug = resolveClubSlug(host, this.env.APP_DOMAIN);
     if (!slug) return next();
 

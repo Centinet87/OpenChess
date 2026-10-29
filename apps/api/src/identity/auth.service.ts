@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
-  type OnModuleInit,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { TenantPrisma } from '../infrastructure/prisma.module';
@@ -27,37 +26,41 @@ export interface AccessTokenPayload {
 }
 
 const INVALID_CREDENTIALS = 'Email o contraseña incorrectos';
+const EMAIL_TAKEN = 'Ya existe una cuenta con ese email';
 
 @Injectable()
-export class AuthService implements OnModuleInit {
+export class AuthService {
   /** Se verifica contra este hash cuando el email no existe, para que ambos casos tarden lo mismo. */
-  private dummyHash = '';
+  private readonly dummyHash = hashPassword(generateOpaqueToken());
 
   constructor(
     private readonly prisma: TenantPrisma,
     private readonly jwt: JwtService,
   ) {}
 
-  async onModuleInit(): Promise<void> {
-    this.dummyHash = await hashPassword(generateOpaqueToken());
-  }
-
   async register(input: RegisterInput): Promise<Session> {
     const existing = await this.prisma.client.user.findUnique({
       where: { email: input.email },
       select: { id: true },
     });
-    if (existing)
-      throw new ConflictException('Ya existe una cuenta con ese email');
+    if (existing) throw new ConflictException(EMAIL_TAKEN);
 
-    const user = await this.prisma.client.user.create({
-      data: {
-        email: input.email,
-        displayName: input.displayName,
-        passwordHash: await hashPassword(input.password),
-      },
-      select: { id: true },
-    });
+    const passwordHash = await hashPassword(input.password);
+    const user = await this.prisma.client.user
+      .create({
+        data: {
+          email: input.email,
+          displayName: input.displayName,
+          passwordHash,
+        },
+        select: { id: true },
+      })
+      .catch((error: unknown) => {
+        // Dos registros simultáneos con el mismo email: el segundo choca con el índice único.
+        if ((error as { code?: string }).code === 'P2002')
+          throw new ConflictException(EMAIL_TAKEN);
+        throw error;
+      });
     return this.issueSession(user.id, randomUUID());
   }
 
@@ -67,7 +70,7 @@ export class AuthService implements OnModuleInit {
       select: { id: true, passwordHash: true },
     });
     const ok = await verifyPassword(
-      user?.passwordHash ?? this.dummyHash,
+      user?.passwordHash ?? (await this.dummyHash),
       input.password,
     );
     if (!user || !ok) throw new UnauthorizedException(INVALID_CREDENTIALS);
@@ -92,7 +95,12 @@ export class AuthService implements OnModuleInit {
     }
     if (stored.expiresAt <= new Date()) throw new UnauthorizedException();
 
+    // Primero se emite el nuevo: si eso falla, el viejo sigue sirviendo y nadie
+    // pierde la sesión por un error pasajero de la BD.
+    const session = await this.issueSession(stored.userId, stored.familyId);
+
     // Condicionado a revokedAt null: si dos requests rotan a la vez, solo una gana.
+    // La que pierde revoca la familia, incluido el token que acaba de emitir.
     const { count } = await tokens.updateMany({
       where: { id: stored.id, revokedAt: null },
       data: { revokedAt: new Date() },
@@ -101,7 +109,7 @@ export class AuthService implements OnModuleInit {
       await this.revokeFamily(stored.familyId);
       throw new UnauthorizedException();
     }
-    return this.issueSession(stored.userId, stored.familyId);
+    return session;
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {

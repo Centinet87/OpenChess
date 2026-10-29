@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
+// 254 es el largo máximo de una dirección de email (RFC 5321).
 const email = z
   .string()
+  .max(254)
   .trim()
   .toLowerCase()
   .pipe(z.email({ message: 'Email inválido' }));

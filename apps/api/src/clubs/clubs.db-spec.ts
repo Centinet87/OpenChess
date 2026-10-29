@@ -108,6 +108,13 @@ describe('clubes', () => {
     await as(users.ana, `nada-${run}`).get('/club/members').expect(404);
   });
 
+  it('un X-Forwarded-Host inventado no da acceso a otro club', async () => {
+    await as(users.ana, slugA)
+      .get('/club/members')
+      .set('X-Forwarded-Host', `${slugB}.localhost`)
+      .expect(403);
+  });
+
   it('un token de invitación del club A no sirve en el club B', async () => {
     const res = await as(users.ana, slugA)
       .post('/club/invitations')

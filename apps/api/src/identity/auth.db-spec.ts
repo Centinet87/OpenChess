@@ -39,7 +39,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await base.user.deleteMany({ where: { email } });
+  await base.user.deleteMany({ where: { email: { contains: email } } });
   await base.$disconnect();
   await app.close();
 });
@@ -122,6 +122,61 @@ describe('auth', () => {
     // El token nuevo también quedó revocado
     await post('refresh')
       .set('Cookie', `${REFRESH_COOKIE}=${newRefresh}`)
+      .expect(401);
+  });
+
+  it('una cookie de refresh con prefijo "j:" responde 401, no 500', async () => {
+    await post('refresh')
+      .set('Cookie', `${REFRESH_COOKIE}=j:{"a":1}`)
+      .expect(401);
+    await post('logout')
+      .set('Cookie', `${REFRESH_COOKIE}=j:{"a":1}`)
+      .expect(204);
+  });
+
+  it('un hash guardado que no es argon2 cuenta como contraseña incorrecta', async () => {
+    const broken = `roto-${email}`;
+    await base.user.create({
+      data: { email: broken, displayName: 'Roto', passwordHash: 'x' },
+    });
+    try {
+      await post('login').send({ email: broken, password: secret }).expect(401);
+    } finally {
+      await base.user.delete({ where: { email: broken } });
+    }
+  });
+
+  it('dos registros simultáneos con el mismo email: uno entra y el otro da 409', async () => {
+    const dup = `dup-${email}`;
+    try {
+      const statuses = await Promise.all(
+        [0, 1].map(async () =>
+          post('register')
+            .send({ email: dup, password: secret, displayName: 'Dup' })
+            .then((r) => r.status),
+        ),
+      );
+      expect(statuses.sort()).toEqual([201, 409]);
+    } finally {
+      await base.user.deleteMany({ where: { email: dup } });
+    }
+  });
+
+  it('si dos requests rotan el mismo refresh a la vez, solo una gana y la familia cae', async () => {
+    const res = await post('login')
+      .send({ email, password: secret })
+      .expect(200);
+    const rt = cookie(res, REFRESH_COOKIE);
+
+    const [a, b] = await Promise.all(
+      [0, 1].map(() =>
+        post('refresh').set('Cookie', `${REFRESH_COOKIE}=${rt}`),
+      ),
+    );
+    expect([a.status, b.status].sort()).toEqual([200, 401]);
+    const winner = a.status === 200 ? a : b;
+    await post('refresh')
+      .set('Cookie', `${REFRESH_COOKIE}=${cookie(winner, REFRESH_COOKIE)}`)
       .expect(401);
   });
 

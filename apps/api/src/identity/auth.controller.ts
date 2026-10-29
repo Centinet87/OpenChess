@@ -8,6 +8,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -33,6 +34,12 @@ import {
 
 // Login y registro: 5 intentos por minuto por IP y email (ver AppThrottlerGuard).
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
+
+/** cookie-parser convierte en objeto una cookie que empieza con "j:": solo sirve un string. */
+function refreshCookie(req: Request): string | undefined {
+  const value: unknown = req.cookies?.[REFRESH_COOKIE];
+  return typeof value === 'string' ? value : undefined;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -73,12 +80,14 @@ export class AuthController {
     try {
       setSessionCookies(
         res,
-        await this.auth.refresh(req.cookies?.[REFRESH_COOKIE]),
+        await this.auth.refresh(refreshCookie(req)),
         this.env,
       );
       return { ok: true };
     } catch (error) {
-      clearSessionCookies(res, this.env);
+      // Solo si la sesión ya no sirve: ante una caída de la BD el usuario sigue logueado.
+      if (error instanceof UnauthorizedException)
+        clearSessionCookies(res, this.env);
       throw error;
     }
   }
@@ -89,7 +98,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
+    await this.auth.logout(refreshCookie(req));
     clearSessionCookies(res, this.env);
   }
 

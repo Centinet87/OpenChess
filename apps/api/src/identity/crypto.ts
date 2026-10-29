@@ -9,11 +9,16 @@ export function hashPassword(password: string): Promise<string> {
   return hash(password, ARGON2_OPTIONS);
 }
 
-export function verifyPassword(
+/** Un hash que no es PHC válido cuenta como contraseña incorrecta, no como error 500. */
+export async function verifyPassword(
   passwordHash: string,
   password: string,
 ): Promise<boolean> {
-  return verify(passwordHash, password);
+  try {
+    return await verify(passwordHash, password);
+  } catch {
+    return false;
+  }
 }
 
 /** Token aleatorio de 256 bits para refresh tokens, invitaciones, etc. */

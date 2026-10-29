@@ -6,7 +6,10 @@ const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().positive().default(3333),
-    DATABASE_URL: z.string().url(),
+    DATABASE_URL: z.url({
+      protocol: /^postgres(ql)?$/,
+      message: 'DATABASE_URL debe ser una URL postgresql://',
+    }),
     /** Dominio raíz: <slug>.<APP_DOMAIN> identifica al club. */
     APP_DOMAIN: z.string().min(1).default('localhost'),
     JWT_SECRET: z
@@ -28,7 +31,7 @@ const envSchema = z
 
 export type Env = z.infer<typeof envSchema>;
 
-/** Falla al arrancar si falta o sobra algo, en vez de fallar en la primera request. */
+/** Falla al arrancar si falta algo o tiene un valor inválido, en vez de fallar en la primera request. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
