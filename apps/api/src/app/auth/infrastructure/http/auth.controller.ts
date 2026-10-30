@@ -4,27 +4,27 @@ import {
   Get,
   HttpCode,
   Inject,
-  NotFoundException,
   Post,
   Req,
   Res,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
-import { ZodPipe } from '../common/zod.pipe';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { ZodPipe } from '../../../common/zod.pipe';
+import { ENV } from '../../../config/config.module';
+import type { Env } from '../../../config/env';
+import { AuthService } from '../../application/auth.service';
+import type {
+  LoginInput,
+  RegisterInput,
+  UserProfile,
+} from '../../domain/auth.types';
+import { AuthExceptionFilter } from './auth-exception.filter';
 import { AuthGuard } from './auth.guard';
-import {
-  loginSchema,
-  registerSchema,
-  type LoginInput,
-  type RegisterInput,
-} from './auth.schemas';
-import { AuthService } from './auth.service';
+import { loginSchema, registerSchema } from './auth.schemas';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
@@ -35,10 +35,10 @@ import {
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller('auth')
+@UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly prisma: TenantPrisma,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -95,12 +95,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthGuard)
-  async me(): Promise<{ id: string; email: string; displayName: string }> {
-    const user = await this.prisma.client.user.findUnique({
-      where: { id: this.cls.get('userId') },
-      select: { id: true, email: true, displayName: true },
-    });
-    if (!user) throw new NotFoundException();
-    return user;
+  async me(): Promise<UserProfile> {
+    return this.auth.me(this.cls.get('userId'));
   }
 }

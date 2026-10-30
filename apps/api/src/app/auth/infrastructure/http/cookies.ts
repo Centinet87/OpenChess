@@ -1,6 +1,6 @@
 import type { CookieOptions, Response } from 'express';
-import type { Env } from '../config/env';
-import { REFRESH_TTL_MS, type Session } from './auth.service';
+import type { Env } from '../../../config/env';
+import { REFRESH_TTL_MS, type Session } from '../../domain/auth.types';
 
 export const ACCESS_COOKIE = 'oc_at';
 export const REFRESH_COOKIE = 'oc_rt';
