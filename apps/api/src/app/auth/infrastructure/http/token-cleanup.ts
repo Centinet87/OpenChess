@@ -4,7 +4,7 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../../../infrastructure/prisma.module';
 
 /** Cada cuánto se borran los tokens vencidos. */
 const EVERY_MS = 60 * 60 * 1000;

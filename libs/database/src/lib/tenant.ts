@@ -10,7 +10,10 @@ export interface TenantContext {
  * transacción. Va en una sola sentencia: set_config('role', …, TRUE) equivale a
  * SET LOCAL ROLE, y así cada consulta ahorra un viaje a la BD.
  */
-function setContext(base: PrismaClient, context: TenantContext) {
+function setContext(
+  base: Pick<PrismaClient, '$executeRaw'>,
+  context: TenantContext,
+) {
   const { clubId = '', userId = '' } = context;
   return base.$executeRaw`SELECT set_config('role', 'app_user', TRUE), set_config('app.club_id', ${clubId}, TRUE), set_config('app.user_id', ${userId}, TRUE)`;
 }
@@ -20,12 +23,10 @@ function setContext(base: PrismaClient, context: TenantContext) {
  * y fija app.club_id / app.user_id, para que actúen las políticas RLS.
  * Sin contexto, las tablas con RLS no devuelven filas.
  *
- * shortcut: $queryRaw/$executeRaw no pasan por aquí, y una consulta dentro de un
- * $transaction interactivo tampoco. Si se necesitan, fijar el contexto a mano.
- * No usar un $transaction interactivo con este cliente: retiene una conexión y
- * cada consulta de adentro pide otra, así que con un pool chico se bloquea.
+ * Limitación: $queryRaw/$executeRaw y $transaction no fijan el contexto.
+ * Para operaciones compuestas, usar $tenantTransaction o tenantTransaction.
  *
- * shortcut: cada consulta cuesta una transacción con dos sentencias (contexto y
+ * Limitación: cada consulta cuesta una transacción con dos sentencias (contexto y
  * la consulta), y Prisma no puede agruparlas. Si pesa, fijar el contexto una
  * vez por request en una transacción.
  */
@@ -34,6 +35,17 @@ export function withTenantContext(
   getContext: () => TenantContext,
 ) {
   return base.$extends({
+    client: {
+      $tenantTransaction<T>(
+        operation: (tx: Prisma.TransactionClient) => Promise<T>,
+      ): Promise<T> {
+        const context = getContext();
+        return base.$transaction(async (tx) => {
+          await setContext(tx, context);
+          return operation(tx);
+        });
+      },
+    },
     query: {
       $allModels: {
         async $allOperations({ args, query }) {

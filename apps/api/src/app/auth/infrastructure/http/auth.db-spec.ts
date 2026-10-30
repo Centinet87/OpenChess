@@ -4,10 +4,11 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
-import { AppModule } from '../app/app.module';
-import { configureApp } from '../app/configure-app';
-import { REFRESH_GRACE_MS } from './auth.service';
+import { AppModule } from '../../../app.module';
+import { configureApp } from '../../../configure-app';
+import { REFRESH_GRACE_MS } from '../../application/auth.service';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
+import { AccountEmailsService } from './account-emails.service';
 
 config({ path: '../../.env', quiet: true });
 
@@ -48,6 +49,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await app.get(AccountEmailsService).idle();
   await base.user.deleteMany({ where: { email: { contains: email } } });
   await base.$disconnect();
   await app.close();
@@ -168,6 +170,7 @@ describe('auth', () => {
       );
       expect(statuses.sort()).toEqual([201, 409]);
     } finally {
+      await app.get(AccountEmailsService).idle();
       await base.user.deleteMany({ where: { email: dup } });
     }
   });

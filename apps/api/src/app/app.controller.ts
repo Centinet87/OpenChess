@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { createPrismaClient } from '@openchess/database';
-import { BASE_PRISMA } from '../infrastructure/prisma.module';
+import { BASE_PRISMA } from './infrastructure/prisma.module';
 
 @Controller()
 export class AppController {

@@ -14,7 +14,7 @@ import { ImportedGamesHub } from '../linked-accounts/imported-games.hub';
  * actualiza el ranking del club sin que `games` ni `linked-accounts` sepan que
  * existe. Corre aparte de la jugada, así que un error aquí no la rompe.
  *
- * shortcut: las partidas de un mismo club se cuentan de a una, en orden, con una
+ * Limitación: las partidas de un mismo club se cuentan de a una, en orden, con una
  * cola en memoria; así dos partidas que terminan a la vez no pisan el rating del
  * mismo jugador. Con varias instancias, pasar a una cola compartida (BullMQ).
  */

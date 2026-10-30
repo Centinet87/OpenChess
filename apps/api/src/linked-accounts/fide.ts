@@ -9,7 +9,7 @@ import { request } from './http';
 /**
  * FIDE no tiene API: se lee la ficha pública ratings.fide.com/profile/<id>.
  *
- * shortcut: depende del HTML de esa página. Si FIDE la rediseña, parseFideProfile
+ * Limitación: depende del HTML de esa página. Si FIDE la rediseña, parseFideProfile
  * deja de reconocerla y se responde PLATFORM_UNAVAILABLE (nunca se guardan datos
  * a medias). Ajustar los patrones de abajo y el test con una ficha nueva.
  */

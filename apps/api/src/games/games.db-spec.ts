@@ -10,11 +10,12 @@ import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../identity/cookies';
+import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
 import type { GameAck, GameView } from '@openchess/contracts';
 import { MESSAGE_LIMIT } from './games.gateway';
 
 config({ path: '../../.env', quiet: true });
+const domain = process.env['APP_DOMAIN'] ?? 'localhost';
 
 const base = createPrismaClient(process.env['DATABASE_URL'] ?? '');
 const run = randomUUID().slice(0, 8);
@@ -32,7 +33,7 @@ const sockets: Socket[] = [];
 function http(name: Name, slug: string) {
   const agent = request(app.getHttpServer());
   const prep = (r: request.Test) =>
-    r.set('Cookie', users[name].cookie).set('Host', `${slug}.localhost`);
+    r.set('Cookie', users[name].cookie).set('Host', `${slug}.${domain}`);
   return {
     get: (p: string) => prep(agent.get(`/api${p}`)),
     post: (p: string) => prep(agent.post(`/api${p}`)),

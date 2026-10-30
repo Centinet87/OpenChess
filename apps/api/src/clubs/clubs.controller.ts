@@ -35,8 +35,8 @@ import {
   type UpdateRoleInput,
 } from '@openchess/contracts';
 import { ClsService } from 'nestjs-cls';
-import { ZodPipe } from '../common/zod.pipe';
-import { AuthGuard } from '../identity/auth.guard';
+import { ZodPipe } from '../app/common/zod.pipe';
+import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
 import { ClubMemberGuard } from './club-member.guard';
 
 /** Dominio raíz: crear clubes y listar los míos. */

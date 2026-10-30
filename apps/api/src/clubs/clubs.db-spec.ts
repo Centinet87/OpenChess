@@ -6,9 +6,10 @@ import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../identity/cookies';
+import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
 
 config({ path: '../../.env', quiet: true });
+const domain = process.env['APP_DOMAIN'] ?? 'localhost';
 
 const base = createPrismaClient(process.env['DATABASE_URL'] ?? '');
 const run = randomUUID().slice(0, 8);
@@ -25,7 +26,7 @@ const users: Record<'ana' | 'beto' | 'caro', TestUser> = {} as never;
 
 /** Request con la sesión del usuario y, si se indica, desde el subdominio de un club. */
 function as(user: TestUser, slug?: string) {
-  const host = slug ? `${slug}.localhost` : 'localhost';
+  const host = slug ? `${slug}.${domain}` : domain;
   const agent = request(app.getHttpServer());
   const withAuth = (r: request.Test) =>
     r.set('Cookie', user.cookie).set('Host', host);
