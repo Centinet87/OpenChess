@@ -26,7 +26,7 @@ import { AppController } from './app.controller';
 @Module({
   imports: [
     ClsModule.forRoot({ global: true, middleware: { mount: true } }),
-    // shortcut: el conteo vive en memoria, así que con varias instancias cada una cuenta por separado. Pasar a Redis al escalar.
+    // Limitación: el conteo vive en memoria, así que con varias instancias cada una cuenta por separado. Pasar a Redis al escalar.
     ThrottlerModule.forRoot([
       { name: 'default', ttl: 60_000, limit: 100 },
       EMAIL_THROTTLER,

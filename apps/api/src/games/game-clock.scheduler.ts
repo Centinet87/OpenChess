@@ -16,7 +16,7 @@ const SLACK_MS = 50;
  * momento exacto en que se acaba el reloj que corre, o el plazo de la primera
  * jugada (entonces se aborta).
  *
- * shortcut: los timers viven en memoria de esta instancia. Si el proceso se
+ * Limitación: los timers viven en memoria de esta instancia. Si el proceso se
  * reinicia se pierden, aunque la partida igual se cierra en la próxima jugada o
  * al unirse alguien (checkTimeout). Con varias instancias, pasar a una cola (BullMQ).
  */
