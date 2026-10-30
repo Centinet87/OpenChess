@@ -6,7 +6,7 @@ import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app.module';
 import { configureApp } from '../configure-app';
-import { ACCESS_COOKIE } from '../auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../auth/api/cookies/session.cookies';
 
 config({ path: '../../.env', quiet: true });
 

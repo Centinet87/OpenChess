@@ -21,9 +21,7 @@ import { perIpAndUser } from '../../../common/throttler.guard';
 import { ZodPipe } from '../../../common/zod.pipe';
 import { ENV } from '../../../config/config.module';
 import type { Env } from '../../../config/env';
-import { AuthGuard } from './auth.guard';
-import { AccountEmailsService } from './account-emails.service';
-import { AccountService } from './account.service';
+import { AuthGuard } from '../guards/auth.guard';
 import {
   changeEmailSchema,
   changePasswordSchema,
@@ -46,14 +44,34 @@ import {
   type AccountExport,
   type Profile,
 } from '@openchess/contracts';
-import { AuthService } from '../../application/auth.service';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import {
+  RegisterCommand,
+  LoginCommand,
+  RefreshSessionCommand,
+  LogoutCommand,
+  UpdateProfileCommand,
+  ChangePasswordCommand,
+  QueueVerificationCommand,
+  VerifyEmailCommand,
+  RequestPasswordResetCommand,
+  ResetPasswordCommand,
+  RequestEmailChangeCommand,
+  ConfirmEmailChangeCommand,
+  DeleteAccountCommand,
+} from '../../application/commands/auth.commands';
+import {
+  GetCurrentUserQuery,
+  ExportAccountQuery,
+} from '../../application/queries/auth.queries';
+import type { Registration, Session } from '../../domain/auth.types';
 import { AuthError } from '../../domain/auth.error';
-import { AuthExceptionFilter } from './auth-exception.filter';
+import { AuthExceptionFilter } from '../filters/auth-exception.filter';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
   setSessionCookies,
-} from './cookies';
+} from '../cookies/session.cookies';
 
 // Login y registro: 5 intentos por minuto por IP y email, y por usuario si hay
 // sesión (ver AppThrottlerGuard).
@@ -71,9 +89,8 @@ function refreshCookie(req: Request): string | undefined {
 @UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
-    private readonly auth: AuthService,
-    private readonly emails: AccountEmailsService,
-    private readonly account: AccountService,
+    private readonly commands: CommandBus,
+    private readonly queries: QueryBus,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -84,9 +101,11 @@ export class AuthController {
     @Body(new ZodPipe(registerSchema)) body: RegisterInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    const { session, userId } = await this.auth.register(body);
+    const { session } = await this.commands.execute<
+      RegisterCommand,
+      Registration
+    >(new RegisterCommand(body));
     setSessionCookies(res, session, this.env);
-    this.emails.queueVerification(userId);
     return { ok: true };
   }
 
@@ -97,15 +116,19 @@ export class AuthController {
   async verifyEmail(
     @Body(new ZodPipe(tokenSchema)) body: TokenInput,
   ): Promise<void> {
-    await this.emails.verifyEmail(body.token);
+    await this.commands.execute<VerifyEmailCommand, void>(
+      new VerifyEmailCommand(body.token),
+    );
   }
 
   @Post('verification-email')
   @HttpCode(204)
   @Throttle(STRICT)
   @UseGuards(AuthGuard)
-  resendVerification(): void {
-    this.emails.queueVerification(this.cls.get('userId'));
+  resendVerification(): Promise<void> {
+    return this.commands.execute<QueueVerificationCommand, void>(
+      new QueueVerificationCommand(this.cls.get('userId')),
+    );
   }
 
   /** Responde 204 exista o no la cuenta. */
@@ -114,8 +137,10 @@ export class AuthController {
   @Throttle(STRICT)
   forgotPassword(
     @Body(new ZodPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
-  ): void {
-    this.emails.requestPasswordReset(body.email);
+  ): Promise<void> {
+    return this.commands.execute<RequestPasswordResetCommand, void>(
+      new RequestPasswordResetCommand(body.email),
+    );
   }
 
   /** Cambia la contraseña con el link del email y cierra todas las sesiones. */
@@ -125,7 +150,9 @@ export class AuthController {
   async resetPassword(
     @Body(new ZodPipe(resetPasswordSchema)) body: ResetPasswordInput,
   ): Promise<void> {
-    await this.emails.resetPassword(body.token, body.password);
+    await this.commands.execute<ResetPasswordCommand, void>(
+      new ResetPasswordCommand(body.token, body.password),
+    );
   }
 
   @Post('login')
@@ -135,7 +162,13 @@ export class AuthController {
     @Body(new ZodPipe(loginSchema)) body: LoginInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    setSessionCookies(res, await this.auth.login(body), this.env);
+    setSessionCookies(
+      res,
+      await this.commands.execute<LoginCommand, Session>(
+        new LoginCommand(body),
+      ),
+      this.env,
+    );
     return { ok: true };
   }
 
@@ -148,7 +181,9 @@ export class AuthController {
     try {
       setSessionCookies(
         res,
-        await this.auth.refresh(refreshCookie(req)),
+        await this.commands.execute<RefreshSessionCommand, Session>(
+          new RefreshSessionCommand(refreshCookie(req)),
+        ),
         this.env,
       );
       return { ok: true };
@@ -169,14 +204,18 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.auth.logout(refreshCookie(req));
+    await this.commands.execute<LogoutCommand, void>(
+      new LogoutCommand(refreshCookie(req)),
+    );
     clearSessionCookies(res, this.env);
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
   me(): Promise<Profile> {
-    return this.auth.profile(this.cls.get('userId'));
+    return this.queries.execute<GetCurrentUserQuery, Profile>(
+      new GetCurrentUserQuery(this.cls.get('userId')),
+    );
   }
 
   /** Cambia el nombre visible. */
@@ -185,7 +224,9 @@ export class AuthController {
   updateMe(
     @Body(new ZodPipe(updateProfileSchema)) body: UpdateProfileInput,
   ): Promise<Profile> {
-    return this.auth.updateProfile(this.cls.get('userId'), body);
+    return this.commands.execute<UpdateProfileCommand, Profile>(
+      new UpdateProfileCommand(this.cls.get('userId'), body),
+    );
   }
 
   /** Cambia la contraseña con la actual; las demás sesiones se cierran. */
@@ -200,10 +241,11 @@ export class AuthController {
     const userId = this.cls.get('userId');
     setSessionCookies(
       res,
-      await this.auth.changePassword(userId, body),
+      await this.commands.execute<ChangePasswordCommand, Session>(
+        new ChangePasswordCommand(userId, body),
+      ),
       this.env,
     );
-    this.emails.queuePasswordChanged(userId);
   }
 
   /** Manda un link al email nuevo; la cuenta lo usa recién al confirmarlo. */
@@ -214,10 +256,12 @@ export class AuthController {
   async changeEmail(
     @Body(new ZodPipe(changeEmailSchema)) body: ChangeEmailInput,
   ): Promise<void> {
-    await this.emails.requestEmailChange(
-      this.cls.get('userId'),
-      body.password,
-      body.newEmail,
+    await this.commands.execute<RequestEmailChangeCommand, void>(
+      new RequestEmailChangeCommand(
+        this.cls.get('userId'),
+        body.password,
+        body.newEmail,
+      ),
     );
   }
 
@@ -228,7 +272,9 @@ export class AuthController {
   async confirmEmailChange(
     @Body(new ZodPipe(tokenSchema)) body: TokenInput,
   ): Promise<void> {
-    await this.emails.confirmEmailChange(body.token);
+    await this.commands.execute<ConfirmEmailChangeCommand, void>(
+      new ConfirmEmailChangeCommand(body.token),
+    );
   }
 
   /** Todos los datos de la persona en JSON (acceso y portabilidad). */
@@ -238,7 +284,9 @@ export class AuthController {
   @Header('Content-Disposition', 'attachment; filename="openchess-datos.json"')
   @Header('Cache-Control', 'no-store')
   exportAccount(): Promise<AccountExport> {
-    return this.account.export(this.cls.get('userId'));
+    return this.queries.execute<ExportAccountQuery, AccountExport>(
+      new ExportAccountQuery(this.cls.get('userId')),
+    );
   }
 
   /** Elimina la cuenta (pide la contraseña) y cierra la sesión. */
@@ -250,7 +298,9 @@ export class AuthController {
     @Body(new ZodPipe(deleteAccountSchema)) body: DeleteAccountInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.account.delete(this.cls.get('userId'), body.password);
+    await this.commands.execute<DeleteAccountCommand, void>(
+      new DeleteAccountCommand(this.cls.get('userId'), body.password),
+    );
     clearSessionCookies(res, this.env);
   }
 }

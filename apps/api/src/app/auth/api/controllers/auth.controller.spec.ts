@@ -5,18 +5,27 @@ import { ClsModule } from 'nestjs-cls';
 import request from 'supertest';
 import { configureApp } from '../../../configure-app';
 import { ENV } from '../../../config/config.module';
-import { AuthService } from '../../application/auth.service';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import {
+  RegisterCommand,
+  LoginCommand,
+  RefreshSessionCommand,
+  LogoutCommand,
+} from '../../application/commands/auth.commands';
+import {
+  GetCurrentUserQuery,
+  VerifyAccessTokenQuery,
+} from '../../application/queries/auth.queries';
 import { AuthError } from '../../domain/auth.error';
 import { AuthController } from './auth.controller';
-import { AuthGuard } from './auth.guard';
-import { AuthExceptionFilter } from './auth-exception.filter';
-import { AccountEmailsService } from './account-emails.service';
-import { AccountService } from './account.service';
+import { AuthGuard } from '../guards/auth.guard';
+import { AuthExceptionFilter } from '../filters/auth-exception.filter';
 
 const profile = {
   id: randomUUID(),
   email: 'ana@test.local',
   displayName: 'Ana',
+  emailVerified: false,
 };
 const password = randomUUID();
 const session = { accessToken: 'test-access', refreshToken: 'test-refresh' };
@@ -39,7 +48,35 @@ describe('Auth HTTP', () => {
       ],
       controllers: [AuthController],
       providers: [
-        { provide: AuthService, useValue: auth },
+        {
+          provide: CommandBus,
+          useValue: {
+            execute: (
+              command:
+                | RegisterCommand
+                | LoginCommand
+                | RefreshSessionCommand
+                | LogoutCommand,
+            ) => {
+              if (command instanceof RegisterCommand)
+                return auth.register(command.input);
+              if (command instanceof LoginCommand)
+                return auth.login(command.input);
+              if (command instanceof RefreshSessionCommand)
+                return auth.refresh(command.refreshToken);
+              return auth.logout(command.refreshToken);
+            },
+          },
+        },
+        {
+          provide: QueryBus,
+          useValue: {
+            execute: (query: GetCurrentUserQuery | VerifyAccessTokenQuery) =>
+              query instanceof GetCurrentUserQuery
+                ? auth.profile(query.userId)
+                : auth.verifyAccessToken(query.accessToken),
+          },
+        },
         {
           provide: ENV,
           useValue: {
@@ -49,16 +86,13 @@ describe('Auth HTTP', () => {
             APP_DOMAIN: 'localhost',
           },
         },
-        {
-          provide: AccountEmailsService,
-          useValue: { queueVerification: jest.fn() },
-        },
-        { provide: AccountService, useValue: {} },
         AuthGuard,
         AuthExceptionFilter,
       ],
     }).compile();
-    app = moduleRef.createNestApplication<NestExpressApplication>();
+    app = moduleRef.createNestApplication<NestExpressApplication>({
+      logger: false,
+    });
     configureApp(app);
     await app.init();
   });
@@ -138,6 +172,32 @@ describe('Auth HTTP', () => {
       .set('Cookie', 'oc_rt=current-refresh')
       .expect(204);
     expect(auth.logout).toHaveBeenCalledWith('current-refresh');
+  });
+
+  it('conserva las cookies si el refresh falla por persistencia', async () => {
+    auth.refresh.mockRejectedValueOnce(new Error('database'));
+    const res = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', 'oc_rt=current-refresh')
+      .expect(500);
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('distingue un token vencido de un fallo interno al verificar la sesión', async () => {
+    auth.verifyAccessToken.mockRejectedValueOnce(
+      Object.assign(new Error('expired'), { name: 'TokenExpiredError' }),
+    );
+    await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .set('Cookie', 'oc_at=expired')
+      .expect(401);
+    auth.verifyAccessToken.mockRejectedValueOnce(
+      new Error('verification unavailable'),
+    );
+    await request(app.getHttpServer())
+      .get('/api/auth/me')
+      .set('Cookie', 'oc_at=current')
+      .expect(500);
   });
 
   it('protege /me y pasa el usuario autenticado a la aplicación', async () => {

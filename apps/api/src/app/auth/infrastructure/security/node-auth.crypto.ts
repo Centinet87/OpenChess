@@ -6,7 +6,7 @@ import {
   generateOpaqueToken,
   sha256,
 } from './crypto';
-import type { AuthCrypto } from '../../application/ports/auth.crypto';
+import type { AuthCrypto } from '../../application/security/auth.crypto';
 import type { AccessTokenPayload } from '../../domain/auth.types';
 
 @Injectable()

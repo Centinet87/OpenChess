@@ -36,7 +36,7 @@ import {
 } from '@openchess/contracts';
 import { ClsService } from 'nestjs-cls';
 import { ZodPipe } from '../app/common/zod.pipe';
-import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
+import { AuthGuard } from '../app/auth/api/guards/auth.guard';
 import { ClubMemberGuard } from './club-member.guard';
 
 /** Dominio raíz: crear clubes y listar los míos. */

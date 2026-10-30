@@ -4,11 +4,11 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
-import { AppModule } from '../../../app.module';
-import { configureApp } from '../../../configure-app';
-import { seedMembers } from '../../../../testing/seed-members';
-import { DELETED_NAME } from './account.service';
-import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
+import { AppModule } from '../../app.module';
+import { configureApp } from '../../configure-app';
+import { seedMembers } from '../../../testing/seed-members';
+import { DELETED_NAME } from '../infrastructure/services/account.service';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
 
 config({ path: '../../.env', quiet: true });
 

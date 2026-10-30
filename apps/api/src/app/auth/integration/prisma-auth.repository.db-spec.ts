@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { ClsService } from 'nestjs-cls';
 import { createPrismaClient } from '@openchess/database';
-import { TenantPrisma } from '../../../infrastructure/prisma.module';
-import { REFRESH_TTL_MS, REFRESH_GRACE_MS } from '../../domain/auth.types';
-import { AuthError } from '../../domain/auth.error';
-import { PrismaAuthRepository } from './prisma-auth.repository';
+import { TenantPrisma } from '../../infrastructure/prisma.module';
+import { REFRESH_TTL_MS, REFRESH_GRACE_MS } from '../domain/auth.types';
+import { AuthError } from '../domain/auth.error';
+import { PrismaAuthRepository } from '../infrastructure/repositories/prisma-auth.repository';
 
 config({ path: '../../.env', quiet: true });
 

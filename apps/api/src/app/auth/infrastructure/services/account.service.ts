@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { AccountOperations } from '../../application/repositories/account.operations';
 import {
   ConflictException,
   Inject,
@@ -41,7 +42,7 @@ const LIVE_SUBSCRIPTION = ['pending', 'active', 'paused'];
  * persona con el contexto de RLS de cada uno: ninguna consulta ve otro club.
  */
 @Injectable()
-export class AccountService {
+export class AccountService implements AccountOperations {
   constructor(
     @Inject(BASE_PRISMA) private readonly base: Base,
     private readonly slugs: ClubSlugCache,

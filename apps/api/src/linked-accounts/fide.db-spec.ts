@@ -10,7 +10,7 @@ import { ClsService } from 'nestjs-cls';
 import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../app/auth/api/cookies/session.cookies';
 import { FIDE_DIRECTORY } from './linked-accounts.module';
 
 config({ path: '../../.env', quiet: true });

@@ -4,11 +4,15 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
-import { AppModule } from '../../../app.module';
-import { configureApp } from '../../../configure-app';
-import { AccountEmailsService } from './account-emails.service';
-import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookies';
-import { MAILER, type Email, type Mailer } from './mailer';
+import { AppModule } from '../../app.module';
+import { configureApp } from '../../configure-app';
+import { AccountEmailsService } from '../infrastructure/services/account-emails.service';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
+import {
+  MAILER,
+  type Email,
+  type Mailer,
+} from '../infrastructure/email/mailer';
 
 config({ path: '../../.env', quiet: true });
 

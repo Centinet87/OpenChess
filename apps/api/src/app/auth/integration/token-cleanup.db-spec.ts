@@ -3,8 +3,8 @@ import { config } from 'dotenv';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { createPrismaClient } from '@openchess/database';
-import { AppModule } from '../../../app.module';
-import { TokenCleanup } from './token-cleanup';
+import { AppModule } from '../../app.module';
+import { TokenCleanup } from '../infrastructure/services/token-cleanup';
 
 config({ path: '../../.env', quiet: true });
 

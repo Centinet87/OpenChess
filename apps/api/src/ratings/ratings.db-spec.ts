@@ -12,7 +12,7 @@ import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
 import type { GameAck } from '@openchess/contracts';
-import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../app/auth/api/cookies/session.cookies';
 import { RatingsListener } from './ratings.listener';
 
 config({ path: '../../.env', quiet: true });

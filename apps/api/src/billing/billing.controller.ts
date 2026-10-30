@@ -22,8 +22,10 @@ import { ZodPipe } from '../app/common/zod.pipe';
 import { clubOrigin } from '../app/tenant/club-slug';
 import { ENV } from '../app/config/config.module';
 import type { Env } from '../app/config/env';
-import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
-import { AuthService } from '../app/auth/application/auth.service';
+import { AuthGuard } from '../app/auth/api/guards/auth.guard';
+import { QueryBus } from '@nestjs/cqrs';
+import { GetCurrentUserQuery } from '../app/auth/application/queries/auth.queries';
+import type { UserProfile } from '../app/auth/domain/entities/user.entity';
 import { isValidWebhookSignature } from './mercadopago';
 
 /** Plan del club: lo ve cualquier miembro; lo cambia solo el dueño. */
@@ -32,7 +34,7 @@ import { isValidWebhookSignature } from './mercadopago';
 export class PlanController {
   constructor(
     private readonly billing: BillingUseCases,
-    private readonly auth: AuthService,
+    private readonly queries: QueryBus,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -54,7 +56,10 @@ export class PlanController {
   @HttpCode(200)
   async checkout(): Promise<CheckoutView> {
     const userId = this.cls.get('userId');
-    const { email } = await this.auth.profile(userId);
+    const { email } = await this.queries.execute<
+      GetCurrentUserQuery,
+      UserProfile
+    >(new GetCurrentUserQuery(userId));
     return this.billing.checkout(
       { isOwner: this.cls.get('role').isOwner },
       this.cls.get('clubId'),

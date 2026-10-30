@@ -11,7 +11,7 @@ import {
 import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../app/auth/api/cookies/session.cookies';
 import { seedMembers } from '../testing/seed-members';
 import { PAYMENT_GATEWAY } from './billing.module';
 

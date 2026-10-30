@@ -1,6 +1,6 @@
 import { Injectable, type ExecutionContext } from '@nestjs/common';
 import { ThrottlerGuard, type ThrottlerOptions } from '@nestjs/throttler';
-import { ACCESS_COOKIE } from '../auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../auth/api/cookies/session.cookies';
 
 /** El email del body (login, registro, recuperar la contraseña), normalizado. */
 export function bodyEmail(body: unknown): string | undefined {

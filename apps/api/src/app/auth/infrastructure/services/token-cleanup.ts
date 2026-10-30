@@ -12,7 +12,7 @@ const EVERY_MS = 60 * 60 * 1000;
 /**
  * Borra los refresh tokens y los links de email vencidos: ya no sirven para
  * nada. Un refresh token revocado pero vigente se guarda hasta que vence,
- * porque si alguien lo reusa delata un robo (ver AuthService.refresh).
+ * porque si alguien lo reusa delata un robo (ver RefreshSessionUseCase).
  *
  * Con varias instancias corre en todas; da lo mismo, borrar es idempotente.
  */

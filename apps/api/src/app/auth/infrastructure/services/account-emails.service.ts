@@ -8,6 +8,7 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import type { ApiError } from '@openchess/contracts';
+import type { AccountEmailOperations } from '../../application/repositories/account.operations';
 import { ENV } from '../../../config/config.module';
 import type { Env } from '../../../config/env';
 import { TenantPrisma } from '../../../infrastructure/prisma.module';
@@ -23,8 +24,8 @@ import {
   passwordChanged,
   resetPassword,
   verifyEmail,
-} from './emails';
-import { MAILER, type Mailer } from './mailer';
+} from '../email/emails';
+import { MAILER, type Mailer } from '../email/mailer';
 
 type Purpose = 'VERIFY_EMAIL' | 'RESET_PASSWORD' | 'CHANGE_EMAIL';
 
@@ -41,7 +42,9 @@ const INVALID_LINK = 'El link no es válido o ya venció. Pide uno nuevo';
  * token solo se guarda el SHA-256, como con los refresh tokens.
  */
 @Injectable()
-export class AccountEmailsService implements OnModuleDestroy {
+export class AccountEmailsService
+  implements OnModuleDestroy, AccountEmailOperations
+{
   private readonly logger = new Logger(AccountEmailsService.name);
   private readonly pending = new Set<Promise<unknown>>();
 

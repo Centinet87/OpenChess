@@ -48,7 +48,7 @@ import { perIpAndUser } from '../app/common/throttler.guard';
 import { ZodPipe } from '../app/common/zod.pipe';
 import { ENV } from '../app/config/config.module';
 import { secureCookies, type Env } from '../app/config/env';
-import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
+import { AuthGuard } from '../app/auth/api/guards/auth.guard';
 import { pkcePair, type LichessOAuth } from './lichess';
 import { oauthCallbackSchema } from './linked-accounts.schemas';
 import {

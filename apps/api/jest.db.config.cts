@@ -9,7 +9,7 @@ module.exports = {
   testMatch: ['<rootDir>/src/**/*.db-spec.ts'],
   // Prisma 7 carga su motor como .mjs: hay que pasarlo por SWC para que Jest (CommonJS) lo entienda.
   transform: { '^.+\\.(m?js|ts)$': [swc, swcOptions] },
-  transformIgnorePatterns: ['node_modules/(?!@prisma/)'],
+  transformIgnorePatterns: ['node_modules/(?!(?:@prisma|cookie)/)'],
   // libs/database importa con extensión .js (ESM); en Jest apuntan al .ts.
   moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
 };

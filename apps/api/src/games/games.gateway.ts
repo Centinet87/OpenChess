@@ -16,15 +16,17 @@ import {
   type GameUpdate,
 } from '@openchess/contracts';
 import { GameError, GamesUseCases, type GameSnapshot } from '@openchess/games';
-import { parse as parseCookies } from 'cookie';
+import { parseCookie as parseCookies } from 'cookie';
 import { ClsService } from 'nestjs-cls';
 import type { Namespace, Socket } from 'socket.io';
 import type { ZodType } from 'zod';
 import { ENV } from '../app/config/config.module';
 import type { Env } from '../app/config/env';
-import { AuthService } from '../app/auth/application/auth.service';
+import { QueryBus } from '@nestjs/cqrs';
+import { VerifyAccessTokenQuery } from '../app/auth/application/queries/auth.queries';
+import type { AccessTokenPayload } from '../app/auth/domain/auth.types';
 import { isAllowedOrigin } from '../app/common/origin';
-import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
+import { ACCESS_COOKIE } from '../app/auth/api/cookies/session.cookies';
 import { TenantPrisma } from '../app/infrastructure/prisma.module';
 import { GameEventsHub } from './game-events.hub';
 import { toView } from './game-view';
@@ -70,7 +72,7 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
   private unsubscribe?: () => void;
 
   constructor(
-    private readonly auth: AuthService,
+    private readonly queries: QueryBus,
     private readonly prisma: TenantPrisma,
     private readonly cls: ClsService,
     private readonly games: GamesUseCases,
@@ -91,8 +93,10 @@ export class GamesGateway implements OnGatewayInit, OnModuleDestroy {
         ACCESS_COOKIE
       ];
       if (!token) return next(new Error('Inicia sesión'));
-      this.auth
-        .verifyAccessToken(token)
+      this.queries
+        .execute<VerifyAccessTokenQuery, AccessTokenPayload>(
+          new VerifyAccessTokenQuery(token),
+        )
         .then(({ sub, exp }) => {
           const now = Date.now();
           const expiresAt = (exp ?? 0) * 1000;

@@ -118,6 +118,36 @@ export default [
     },
   },
   {
+    files: ['apps/api/src/app/auth/api/**/*.ts'],
+    plugins: { import: importPlugin },
+    settings: {
+      'import/resolver': { node: { extensions: ['.ts', '.js'] } },
+    },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['@prisma/**', '@openchess/database'] },
+      ],
+      'import/no-restricted-paths': [
+        'error',
+        {
+          basePath: fileURLToPath(new URL('.', import.meta.url)),
+          zones: [
+            {
+              target: './apps/api/src/app/auth/api',
+              from: [
+                './apps/api/src/app/auth/infrastructure',
+                './apps/api/src/app/infrastructure',
+              ],
+              message:
+                'La API accede a infraestructura a través de los casos de uso.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       '**/*.ts',
       '**/*.tsx',
