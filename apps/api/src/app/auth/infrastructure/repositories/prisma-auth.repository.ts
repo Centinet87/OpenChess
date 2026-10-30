@@ -6,13 +6,13 @@ import type {
   CreateRefreshTokenInput,
   CreateUserInput,
   RefreshTokenInput,
-} from '../../application/ports/auth.repository';
+} from '../../application/repositories/auth.repository';
 import { AuthError } from '../../domain/auth.error';
+import type { RefreshToken } from '../../domain/entities/refresh-token.entity';
 import type {
-  RefreshToken,
   UserCredentials,
   UserProfile,
-} from '../../domain/auth.types';
+} from '../../domain/entities/user.entity';
 
 @Injectable()
 export class PrismaAuthRepository implements AuthRepository {

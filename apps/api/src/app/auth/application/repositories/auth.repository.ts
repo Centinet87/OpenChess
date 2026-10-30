@@ -1,4 +1,7 @@
-import type { UserCredentials, UserProfile } from '../../domain/auth.types';
+import type {
+  UserCredentials,
+  UserProfile,
+} from '../../domain/entities/user.entity';
 
 export interface CreateUserInput {
   email: string;

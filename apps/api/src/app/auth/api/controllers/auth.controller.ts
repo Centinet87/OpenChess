@@ -11,25 +11,33 @@ import {
   UseFilters,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { ZodPipe } from '../../../common/zod.pipe';
 import { ENV } from '../../../config/config.module';
 import type { Env } from '../../../config/env';
-import { AuthService } from '../../application/auth.service';
+import {
+  LoginCommand,
+  LogoutCommand,
+  RefreshSessionCommand,
+  RegisterCommand,
+} from '../../application/commands/auth.commands';
 import type {
   LoginInput,
   RegisterInput,
-  UserProfile,
-} from '../../domain/auth.types';
-import { AuthExceptionFilter } from './auth-exception.filter';
-import { AuthGuard } from './auth.guard';
-import { loginSchema, registerSchema } from './auth.schemas';
+} from '../../application/commands/auth.commands';
+import { GetCurrentUserQuery } from '../../application/queries/auth.queries';
+import type { Session } from '../../domain/auth.types';
+import type { UserProfile } from '../../domain/entities/user.entity';
+import { AuthExceptionFilter } from '../filters/auth-exception.filter';
+import { AuthGuard } from '../guards/auth.guard';
+import { loginSchema, registerSchema } from '../dtos/auth.dto';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
   setSessionCookies,
-} from './cookies';
+} from '../cookies/session.cookies';
 
 // Login y registro: 5 intentos por minuto por IP.
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
@@ -38,7 +46,8 @@ const STRICT = { default: { limit: 5, ttl: 60_000 } };
 @UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
-    private readonly auth: AuthService,
+    private readonly commands: CommandBus,
+    private readonly queries: QueryBus,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -49,7 +58,10 @@ export class AuthController {
     @Body(new ZodPipe(registerSchema)) body: RegisterInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    setSessionCookies(res, await this.auth.register(body), this.env);
+    const session = await this.commands.execute<RegisterCommand, Session>(
+      new RegisterCommand(body),
+    );
+    setSessionCookies(res, session, this.env);
     return { ok: true };
   }
 
@@ -60,7 +72,10 @@ export class AuthController {
     @Body(new ZodPipe(loginSchema)) body: LoginInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    setSessionCookies(res, await this.auth.login(body), this.env);
+    const session = await this.commands.execute<LoginCommand, Session>(
+      new LoginCommand(body),
+    );
+    setSessionCookies(res, session, this.env);
     return { ok: true };
   }
 
@@ -73,7 +88,9 @@ export class AuthController {
     try {
       setSessionCookies(
         res,
-        await this.auth.refresh(req.cookies?.[REFRESH_COOKIE]),
+        await this.commands.execute<RefreshSessionCommand, Session>(
+          new RefreshSessionCommand(req.cookies?.[REFRESH_COOKIE]),
+        ),
         this.env,
       );
       return { ok: true };
@@ -89,13 +106,17 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
+    await this.commands.execute<LogoutCommand, void>(
+      new LogoutCommand(req.cookies?.[REFRESH_COOKIE]),
+    );
     clearSessionCookies(res, this.env);
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
   async me(): Promise<UserProfile> {
-    return this.auth.me(this.cls.get('userId'));
+    return this.queries.execute<GetCurrentUserQuery, UserProfile>(
+      new GetCurrentUserQuery(this.cls.get('userId')),
+    );
   }
 }

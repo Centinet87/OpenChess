@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { AuthError } from '../domain/auth.error';
-import { REFRESH_TTL_MS } from '../domain/auth.types';
-import { AuthService } from './auth.service';
-import type { AuthCrypto } from './ports/auth.crypto';
-import type { AuthRepository } from './ports/auth.repository';
+import { AuthError } from '../../domain/auth.error';
+import { REFRESH_TTL_MS } from '../../domain/auth.types';
+import type { AuthCrypto } from '../security/auth.crypto';
+import type { AuthRepository } from '../repositories/auth.repository';
+import { IssueSession } from './issue-session';
+import { RegisterUseCase } from './register.use-case';
+import { LoginUseCase } from './login.use-case';
+import { RefreshSessionUseCase } from './refresh-session.use-case';
+import { LogoutUseCase } from './logout.use-case';
+import { GetCurrentUserUseCase } from './get-current-user.use-case';
+import { VerifyAccessTokenUseCase } from './verify-access-token.use-case';
 
 const input = {
   email: 'ana@test.local',
@@ -11,10 +17,15 @@ const input = {
   displayName: 'Ana',
 };
 const user = { id: randomUUID(), passwordHash: 'stored-hash' };
-describe('AuthService', () => {
+describe('Auth use cases', () => {
   let repository: jest.Mocked<AuthRepository>;
   let crypto: jest.Mocked<AuthCrypto>;
-  let auth: AuthService;
+  let register: RegisterUseCase;
+  let login: LoginUseCase;
+  let refresh: RefreshSessionUseCase;
+  let logout: LogoutUseCase;
+  let currentUser: GetCurrentUserUseCase;
+  let verifyAccessToken: VerifyAccessTokenUseCase;
 
   beforeEach(async () => {
     repository = {
@@ -33,13 +44,19 @@ describe('AuthService', () => {
       signAccessToken: jest.fn().mockResolvedValue('access-token'),
       verifyAccessToken: jest.fn().mockResolvedValue({ sub: user.id }),
     };
-    auth = new AuthService(repository, crypto);
-    await auth.initialize();
+    const issueSession = new IssueSession(repository, crypto);
+    register = new RegisterUseCase(repository, crypto, issueSession);
+    login = new LoginUseCase(repository, crypto, issueSession);
+    refresh = new RefreshSessionUseCase(repository, crypto);
+    logout = new LogoutUseCase(repository, crypto);
+    currentUser = new GetCurrentUserUseCase(repository);
+    verifyAccessToken = new VerifyAccessTokenUseCase(crypto);
+    await login.initialize();
   });
 
   it('registra con contraseña hasheada y persiste solo el hash del refresh', async () => {
     const before = Date.now();
-    await expect(auth.register(input)).resolves.toEqual({
+    await expect(register.execute(input)).resolves.toEqual({
       accessToken: 'access-token',
       refreshToken: 'opaque-token',
     });
@@ -58,7 +75,7 @@ describe('AuthService', () => {
 
   it('rechaza un email existente sin crear otra cuenta', async () => {
     repository.findUserByEmail.mockResolvedValue(user);
-    await expect(auth.register(input)).rejects.toMatchObject({
+    await expect(register.execute(input)).rejects.toMatchObject({
       code: 'email_taken',
       message: 'Ya existe una cuenta con ese email',
     });
@@ -70,7 +87,7 @@ describe('AuthService', () => {
     async (account) => {
       repository.findUserByEmail.mockResolvedValue(account);
       crypto.verifyPassword.mockResolvedValue(false);
-      await expect(auth.login(input)).rejects.toMatchObject({
+      await expect(login.execute(input)).rejects.toMatchObject({
         code: 'invalid_credentials',
         message: 'Email o contraseña incorrectos',
       });
@@ -84,20 +101,20 @@ describe('AuthService', () => {
 
   it('inicia sesión con credenciales válidas', async () => {
     repository.findUserByEmail.mockResolvedValue(user);
-    await expect(auth.login(input)).resolves.toEqual({
+    await expect(login.execute(input)).resolves.toEqual({
       accessToken: 'access-token',
       refreshToken: 'opaque-token',
     });
   });
 
   it('rechaza un refresh ausente sin consultar la base', async () => {
-    await expect(auth.refresh(undefined)).rejects.toBeInstanceOf(AuthError);
+    await expect(refresh.execute(undefined)).rejects.toBeInstanceOf(AuthError);
     expect(repository.rotateRefreshToken).not.toHaveBeenCalled();
   });
 
   it('rechaza una rotación inválida sin emitir un access token', async () => {
     repository.rotateRefreshToken.mockResolvedValue(null);
-    await expect(auth.refresh('unknown')).rejects.toMatchObject({
+    await expect(refresh.execute('unknown')).rejects.toMatchObject({
       code: 'invalid_session',
     });
     expect(repository.createRefreshToken).not.toHaveBeenCalled();
@@ -106,7 +123,7 @@ describe('AuthService', () => {
 
   it('delega la rotación atómica y emite la sesión del usuario devuelto', async () => {
     const before = Date.now();
-    await expect(auth.refresh('old')).resolves.toEqual({
+    await expect(refresh.execute('old')).resolves.toEqual({
       accessToken: 'access-token',
       refreshToken: 'opaque-token',
     });
@@ -123,19 +140,19 @@ describe('AuthService', () => {
   });
 
   it('logout sin token no consulta la base', async () => {
-    await auth.logout(undefined);
+    await logout.execute(undefined);
     expect(repository.revokeSession).not.toHaveBeenCalled();
   });
 
   it('logout revoca la familia del token', async () => {
-    await auth.logout('current');
+    await logout.execute('current');
     expect(repository.revokeSession).toHaveBeenCalledWith('token-hash');
   });
 
   it('propaga errores de persistencia sin emitir un access token', async () => {
     crypto.signAccessToken.mockClear();
     repository.rotateRefreshToken.mockRejectedValue(new Error('database'));
-    await expect(auth.refresh('current')).rejects.toThrow('database');
+    await expect(refresh.execute('current')).rejects.toThrow('database');
     expect(crypto.signAccessToken).not.toHaveBeenCalled();
   });
 
@@ -146,20 +163,20 @@ describe('AuthService', () => {
       displayName: input.displayName,
     };
     repository.findUserById.mockResolvedValueOnce(profile);
-    await expect(auth.me(user.id)).resolves.toEqual(profile);
-    await expect(auth.me(user.id)).rejects.toMatchObject({
+    await expect(currentUser.execute(user.id)).resolves.toEqual(profile);
+    await expect(currentUser.execute(user.id)).rejects.toMatchObject({
       code: 'user_not_found',
     });
   });
 
   it('delega la verificación del access token y propaga su rechazo', async () => {
-    await expect(auth.verifyAccessToken('access')).resolves.toEqual({
+    await expect(verifyAccessToken.execute('access')).resolves.toEqual({
       sub: user.id,
     });
     crypto.verifyAccessToken.mockRejectedValueOnce(
       new Error('invalid signature'),
     );
-    await expect(auth.verifyAccessToken('invalid')).rejects.toThrow(
+    await expect(verifyAccessToken.execute('invalid')).rejects.toThrow(
       'invalid signature',
     );
   });

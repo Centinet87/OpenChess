@@ -5,11 +5,19 @@ import { ClsModule } from 'nestjs-cls';
 import request from 'supertest';
 import { configureApp } from '../../../configure-app';
 import { ENV } from '../../../config/config.module';
-import { AuthService } from '../../application/auth.service';
+import { CqrsModule } from '@nestjs/cqrs';
+import { RegisterUseCase } from '../../application/use-cases/register.use-case';
+import { LoginUseCase } from '../../application/use-cases/login.use-case';
+import { RefreshSessionUseCase } from '../../application/use-cases/refresh-session.use-case';
+import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
+import { GetCurrentUserUseCase } from '../../application/use-cases/get-current-user.use-case';
+import { VerifyAccessTokenUseCase } from '../../application/use-cases/verify-access-token.use-case';
+import { AUTH_COMMAND_HANDLERS } from '../handlers/auth-command.handlers';
+import { AUTH_QUERY_HANDLERS } from '../handlers/auth-query.handlers';
 import { AuthError } from '../../domain/auth.error';
 import { AuthController } from './auth.controller';
-import { AuthGuard } from './auth.guard';
-import { AuthExceptionFilter } from './auth-exception.filter';
+import { AuthGuard } from '../guards/auth.guard';
+import { AuthExceptionFilter } from '../filters/auth-exception.filter';
 
 const profile = {
   id: randomUUID(),
@@ -33,11 +41,22 @@ describe('Auth HTTP', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
+        CqrsModule.forRoot(),
         ClsModule.forRoot({ global: true, middleware: { mount: true } }),
       ],
       controllers: [AuthController],
       providers: [
-        { provide: AuthService, useValue: auth },
+        { provide: RegisterUseCase, useValue: { execute: auth.register } },
+        { provide: LoginUseCase, useValue: { execute: auth.login } },
+        { provide: RefreshSessionUseCase, useValue: { execute: auth.refresh } },
+        { provide: LogoutUseCase, useValue: { execute: auth.logout } },
+        { provide: GetCurrentUserUseCase, useValue: { execute: auth.me } },
+        {
+          provide: VerifyAccessTokenUseCase,
+          useValue: { execute: auth.verifyAccessToken },
+        },
+        ...AUTH_COMMAND_HANDLERS,
+        ...AUTH_QUERY_HANDLERS,
         { provide: ENV, useValue: { NODE_ENV: 'test' } },
         AuthGuard,
         AuthExceptionFilter,

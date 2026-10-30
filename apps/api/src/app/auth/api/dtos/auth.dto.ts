@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import type { LoginInput, RegisterInput } from '../../domain/auth.types';
+import type {
+  LoginInput,
+  RegisterInput,
+} from '../../application/commands/auth.commands';
 
 const email = z
   .string()

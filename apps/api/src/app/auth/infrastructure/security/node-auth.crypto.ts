@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from '@node-rs/argon2';
-import type { AuthCrypto } from '../../application/ports/auth.crypto';
+import type { AuthCrypto } from '../../application/security/auth.crypto';
 import type { AccessTokenPayload } from '../../domain/auth.types';
 
 // Parámetros mínimos que recomienda OWASP para argon2id (19 MiB, 2 pasadas).
