@@ -1,11 +1,11 @@
-# Actualizaciones semanales, agrupadas en un PR por ecosistema para no llenar el repo de PRs.
+# PR de versiones en pausa; las alertas de seguridad siguen activas.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
-    target-branch: desa
+    open-pull-requests-limit: 0
     groups:
       dependencias:
         patterns: ['*']
@@ -13,4 +13,4 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    target-branch: desa
+    open-pull-requests-limit: 0

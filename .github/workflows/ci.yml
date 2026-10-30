@@ -1,10 +1,10 @@
 name: CI
 
-# Corre en cada PR hacia main o desa, y a mano desde la pestaña Actions.
+# Corre en cada PR hacia main, y a mano desde la pestaña Actions.
 # El hook pre-push corre lo mismo en local antes de cada push (`npm run check`).
 on:
   pull_request:
-    branches: [main, desa]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
