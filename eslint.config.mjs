@@ -1,4 +1,6 @@
 import nx from '@nx/eslint-plugin';
+import importPlugin from 'eslint-plugin-import';
+import { fileURLToPath } from 'node:url';
 
 export default [
   ...nx.configs['flat/base'],
@@ -44,6 +46,50 @@ export default [
             },
             { sourceTag: 'type:data', onlyDependOnLibsWithTags: ['type:util'] },
             { sourceTag: 'type:util', onlyDependOnLibsWithTags: ['type:util'] },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['apps/api/src/app/auth/{domain,application}/**/*.ts'],
+    plugins: { import: importPlugin },
+    settings: {
+      'import/resolver': { node: { extensions: ['.ts', '.js'] } },
+    },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^(?!\\.|node:)',
+              message:
+                'El núcleo solo importa sus capas internas y módulos nativos de Node.',
+            },
+          ],
+        },
+      ],
+      'import/no-restricted-paths': [
+        'error',
+        {
+          basePath: fileURLToPath(new URL('.', import.meta.url)),
+          zones: [
+            {
+              target: './apps/api/src/app/auth/domain',
+              from: '.',
+              except: ['./apps/api/src/app/auth/domain'],
+              message: 'El dominio solo depende del dominio.',
+            },
+            {
+              target: './apps/api/src/app/auth/application',
+              from: '.',
+              except: [
+                './apps/api/src/app/auth/domain',
+                './apps/api/src/app/auth/application',
+              ],
+              message: 'La aplicación solo depende de aplicación y dominio.',
+            },
           ],
         },
       ],

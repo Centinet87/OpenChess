@@ -58,35 +58,24 @@ export class AuthService {
    */
   async refresh(refreshToken: string | undefined): Promise<Session> {
     if (!refreshToken) throw new AuthError('invalid_session');
-    const stored = await this.repository.findRefreshToken(
+    const replacement = this.crypto.generateToken();
+    const rotated = await this.repository.rotateRefreshToken(
       this.crypto.hashToken(refreshToken),
+      {
+        tokenHash: this.crypto.hashToken(replacement),
+        expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+      },
     );
-    if (!stored) throw new AuthError('invalid_session');
-
-    if (stored.revokedAt) {
-      await this.revokeFamily(stored.familyId);
-      throw new AuthError('invalid_session');
-    }
-    if (stored.expiresAt <= new Date()) throw new AuthError('invalid_session');
-
-    // Condicionado a revokedAt null: si dos requests rotan a la vez, solo una gana.
-    const count = await this.repository.revokeRefreshToken(
-      stored.id,
-      new Date(),
-    );
-    if (count === 0) {
-      await this.revokeFamily(stored.familyId);
-      throw new AuthError('invalid_session');
-    }
-    return this.issueSession(stored.userId, stored.familyId);
+    if (!rotated) throw new AuthError('invalid_session');
+    const accessToken = await this.crypto.signAccessToken({
+      sub: rotated.userId,
+    });
+    return { accessToken, refreshToken: replacement };
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {
     if (!refreshToken) return;
-    const stored = await this.repository.findRefreshToken(
-      this.crypto.hashToken(refreshToken),
-    );
-    if (stored) await this.revokeFamily(stored.familyId);
+    await this.repository.revokeSession(this.crypto.hashToken(refreshToken));
   }
 
   async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
@@ -114,9 +103,5 @@ export class AuthService {
       sub: userId,
     } satisfies AccessTokenPayload);
     return { accessToken, refreshToken };
-  }
-
-  private async revokeFamily(familyId: string): Promise<void> {
-    await this.repository.revokeFamily(familyId, new Date());
   }
 }
