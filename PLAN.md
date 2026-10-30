@@ -1,13 +1,13 @@
 # Plan: OpenChess, un SaaS multi-tenant para clubes de ajedrez
 
-**Estado:** aprobado. Fase 0 lista (sin commit).
+**Estado:** aprobado. Fases 0 y 1 hechas; las Fases 2 y 3 están hechas en el backend.
 **Licencia:** MIT
 **Complejidad:** alta en total. La Fase 2 (tiempo real) es la más pesada.
 
 ## Qué vamos a construir
 
 - Cada **club o academia** es un tenant con su propio espacio: `miclub.openchess.app`.
-- Hay tres roles dentro de cada club: **dueño**, **profesor** y **alumno**.
+- Cada club define sus roles (por ejemplo Presidente, Profesor, Socio, Miembro del club), con permisos, orden y color. Parte con **Admin** (dueño), **Profesor** y **Alumno**.
 - Los miembros juegan partidas en vivo entre ellos, con reloj. Cada partida queda guardada en PGN y suma a un ranking interno del club.
 - El código es abierto con licencia MIT, y el negocio es la versión hosteada que se paga por club.
 
@@ -29,27 +29,28 @@
 | Autorización        | El JWT solo lleva el `user_id`. El club sale del subdominio y el rol se consulta en `memberships`                                                                   | Si el rol va en el token, un miembro expulsado sigue entrando hasta que el token vence                                           |
 | Ajedrez             | `chess.js` para validar jugadas y `chessground` para el tablero                                                                                                     | Son librerías probadas. No hay que programar las reglas a mano                                                                   |
 | Tiempo real         | Gateway de WebSocket de Nest (`@nestjs/websockets` + Socket.IO) dentro del monolito                                                                                 | Una sola app que desplegar. Si crece, se separa y se agrega Redis pub/sub                                                        |
-| Ranking             | Glicko-2 con la librería `glicko2`                                                                                                                                  | Es el estándar online y funciona bien con pocas partidas                                                                         |
+| Ranking             | Glicko-2 implementado en `libs/ratings` (sin librería), probado contra el ejemplo del paper de Glickman                                                             | Estándar online, bien con pocas partidas. La lib `glicko2` no trae tipos; el algoritmo son ~80 líneas puras                      |
 | Hosting             | Vercel para el front, Fly.io o Railway para la API, Neon o Supabase para Postgres                                                                                   | Todo tiene plan gratis para el MVP. La API necesita un servidor persistente por los WebSockets                                   |
-| Cobros              | Stripe, o Mercado Pago/Flow si los clientes son de Chile. Va después del MVP                                                                                        | Primero hay que validar que los clubes lo usen                                                                                   |
+| Cobros              | Mercado Pago: suscripción mensual (preapproval) en CLP                                                                                                              | Primero hay que validar que los clubes lo usen                                                                                   |
 
 ## Estructura del workspace
 
 ```text
 apps/
-  api/                 NestJS: arranque, módulos y gateway de WebSocket
+  api/                 NestJS: arranque, módulos, adaptadores (Prisma, Mercado Pago, Lichess…) y gateway de WebSocket
   web/                 Next.js
 libs/
-  shared/kernel/       Value objects y errores de dominio comunes (ClubId, UserId, Result)
-  shared/contracts/    DTOs y eventos que comparten api y web
-  identity/            Usuarios, auth, sesiones (CRUD + servicios)
-  clubs/               Clubes, membresías, invitaciones (dominio rico: reglas de roles)
+  contracts/           Lo que comparten api y web: esquemas de cada request, respuestas, protocolo del WebSocket y códigos de error
+  (identity vive por ahora en apps/api/src/identity: solo la usa la API)
+  clubs/               Clubes, membresías, roles e invitaciones (dominio rico)
   games/               Partidas, reloj, jugadas (dominio rico)
   ratings/             Glicko-2 y tabla de posiciones (dominio rico)
+  linked-accounts/     Lichess, Chess.com, partidas importadas y Elo FIDE
+  billing/             Planes y suscripción
   database/            Esquema Prisma, migraciones, extensión de RLS
 ```
 
-Cada lib con dominio rico se divide en `domain/` (entidades y puertos, sin dependencias de Nest ni Prisma), `application/` (casos de uso) e `infrastructure/` (adaptadores Prisma, controladores, gateways).
+Cada lib de negocio se divide en `domain/` (entidades y reglas, sin dependencias de Nest ni Prisma) y `application/` (casos de uso y los puertos que necesitan). Los adaptadores que implementan esos puertos (Prisma, controladores, gateways) viven en `apps/api`. La referencia de rutas para el front está en `docs/api.md`.
 
 ## Patrones que calzan solos
 
@@ -68,18 +69,18 @@ Se usan donde el problema los pide, no como meta:
 - Workspace Nx con `apps/api` (Nest), `apps/web` (Next) y `libs/database` (Prisma). Postgres en Docker para desarrollo.
 - Reglas de `enforce-module-boundaries` desde el primer commit.
 - Archivos `LICENSE` (MIT), `README`, `CONTRIBUTING` y `.env.example`.
-- CI en GitHub Actions con `nx affected` para lint, typecheck y tests. Para pushear esto, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
+- CI en GitHub Actions en cada PR: formato, lint, typecheck, tests, tests contra Postgres (`test-db`) y build de lo afectado. Para pushear cambios del workflow, la cuenta Centinet87 necesita el permiso `workflow` (`gh auth refresh -s workflow`).
 
-### Fase 1: Tenants y cuentas (media, la parte crítica)
+### Fase 1: Tenants y cuentas (media, la parte crítica) — hecha
 
 - Tablas `clubs`, `users`, `memberships` (con el rol), `invitations` y `refresh_tokens`.
 - Contexto del tenant con `nestjs-cls` y la extensión de Prisma que fija `app.club_id`.
 - Políticas RLS en todas las tablas con `club_id`.
-- Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256.
-- Crear un club, invitar alumnos por link y gestionar roles. Guards de Nest que consultan el rol en `memberships`.
-- **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro.
+- Registro, login, refresh y logout con argon2id y JWT. Verificación de email y recuperación de contraseña con tokens hasheados en SHA-256, enviados con Resend.
+- Crear un club, invitar por link con un rol y gestionar roles. Guards de Nest que consultan el rol y sus permisos en `memberships` y `club_roles`.
+- **Test obligatorio:** un usuario del club A no puede leer ni escribir nada del club B, ni siquiera con una consulta sin filtro. Aplica a las tablas con `club_id` (`memberships`, `invitations`, `games`). `users`, `clubs` y `refresh_tokens` son globales: no tienen RLS y solo se leen desde `identity` y los guards, nunca devueltas tal cual a otro club.
 
-### Fase 2: Jugar (alta)
+### Fase 2: Jugar (alta) — hecha en el backend; falta el tablero en el front
 
 - Entidad `Game` con estados (patrón State) y controles de tiempo (patrón Strategy).
 - Desafiar a un miembro del club, con control de tiempo (blitz/rápida).
@@ -87,16 +88,32 @@ Se usan donde el problema los pide, no como meta:
 - Manejo de reconexión, abandono por tiempo, tablas y rendición.
 - Al terminar, se guarda el PGN y se emite el evento `GameFinished`.
 
-### Fase 3: Ranking e historial (baja)
+### Fase 3: Ranking e historial (baja) — hecha en el backend; faltan las pantallas
 
-- `ratings` escucha `GameFinished` y recalcula Glicko-2 por club.
-- Tabla de posiciones y perfil de cada jugador con sus partidas.
+- `ratings` escucha `GameFinished` y recalcula Glicko-2 por club. Cada partida es su propio período de rating, y una partida abortada no cuenta.
+- Tabla de posiciones (`GET /club/ratings`) y perfil de cada jugador con su historial (`GET /club/ratings/:userId`). El PGN de cada partida sale de `GET /club/games/:id`.
 - Visor de partidas para revisarlas jugada a jugada.
 
-### Fase 4: Lanzamiento (media)
+### Roles configurables — hecho en el backend; faltan las pantallas
 
-- Página pública, términos de uso y política de privacidad.
-- Plan gratis con límite de miembros y plan pagado. Aquí entra el cobro.
+- Permisos: `MANAGE_ROLES`, `INVITE_MEMBERS`, `REMOVE_MEMBERS`, `MANAGE_FIDE`, `PLAY_GAMES` e `IMPORT_GAMES`. El rol dueño los tiene todos, no se borra y el club siempre tiene alguien con él.
+- Jerarquía con orden y color: solo se tocan roles por debajo del propio y no se da un permiso que uno no tiene. Solo un dueño reordena.
+- `GET/POST /club/roles`, `PATCH/DELETE /club/roles/:id`, `PUT /club/roles/order`, `GET /club/roles/permissions` y `GET /club/me` (mi rol y permisos).
+
+### Lichess, Chess.com y Elo FIDE — hecho en el backend; faltan las pantallas
+
+- Cada usuario vincula su cuenta de Lichess (OAuth con PKCE) o de Chess.com (código en el perfil). Una cuenta verificada es de una sola persona.
+- El perfil del club muestra los ratings online de cada miembro.
+- Un miembro trae al club sus partidas de los últimos 30 días. Las de ajedrez estándar entre dos miembros con cuentas verificadas cuentan para el ranking del club.
+- Elo FIDE: FIDE no tiene login ni API, así que el FIDE ID de un miembro lo asigna quien tiene el permiso `MANAGE_FIDE` y vale solo en ese club. Se lee la ficha pública de ratings.fide.com (si FIDE cambia esa página, hay que ajustar `apps/api/src/linked-accounts/fide.ts`). Quien tiene Elo FIDE y aún no juega en el club parte con ese rating (RD 150) en vez de 1500.
+- `GET/POST/DELETE /accounts/...` en el dominio raíz; `GET/PUT/DELETE /club/fide/:userId` en el club; `POST/GET /club/imports` y `GET /club/accounts/:userId` en el club. Lichess vuelve a `PUBLIC_URL/cuenta?vinculada=lichess` o `?error=<código>`.
+
+### Fase 4: Lanzamiento (media) — planes y cobro hechos en el backend; faltan las páginas
+
+- Página pública, términos de uso y política de privacidad (borradores en `docs/legal`, falta la revisión legal).
+- Derechos sobre los datos: `GET /auth/account/export` descarga todo en JSON y `DELETE /auth/account` (con la contraseña) elimina la cuenta. La fila del usuario queda anónima ("Cuenta eliminada") para no romper las partidas ni el historial de los rivales; se borran membresías, ratings, cuentas vinculadas, FIDE ID y sesiones. No se puede con una partida en curso, siendo el único dueño de un club con más miembros, o con un plan Pro activo en un club donde se está solo (ese club se borra con la cuenta).
+- Plan gratis con límite de 15 miembros y plan Pro sin límite, con suscripción mensual de Mercado Pago (`libs/billing`). Lo paga y lo cancela solo el dueño del club. El club pasa a Pro cuando Mercado Pago confirma el pago: el webhook se valida con su firma y el estado se consulta a la API, nunca se confía en el aviso. Si un club Pro cancela con más de 15 miembros, nadie sale, pero no entran nuevos.
+- `GET /club/plan`, `POST /club/plan/checkout` (devuelve el link de pago), `POST /club/plan/cancel` y `POST /billing/mercadopago/webhook`.
 
 ### Fuera del MVP
 
@@ -113,3 +130,17 @@ Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de
 | Con MIT, alguien puede montar un SaaS cerrado con este código    | Medio          | Está bien si el valor está en el servicio hosteado. Cambiar a AGPL es más fácil mientras no haya contribuidores externos                                                           |
 | El gateway de WebSocket no escala a muchas partidas              | Medio          | Para el MVP basta una instancia. Si crece, se separa del monolito y se agrega Redis pub/sub                                                                                        |
 | Trampas con un motor de ajedrez                                  | Bajo en el MVP | Las partidas son internas del club y el profesor conoce a los alumnos. Se revisa más adelante                                                                                      |
+
+## Pendientes del QA (2026-10-29)
+
+| Sev. | Pendiente                                                                                                                         |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Bajo | Cada consulta va en su propia transacción con el contexto de RLS (dos sentencias). Si pesa, fijar el contexto una vez por request |
+
+## Pendientes de la Fase 2
+
+| Sev.  | Pendiente                                                                                                                                                                                                           |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Medio | Los timers del reloj viven en memoria: con varias instancias de la API hay que pasarlos a una cola (BullMQ + Redis). Si el proceso se reinicia, la partida igual se cierra en la próxima jugada o al unirse alguien |
+| Bajo  | Los miembros del club pueden unirse como espectadores; falta decidir si se ocultan las ofertas de tablas                                                                                                            |
+| Bajo  | El front: tablero con chessground, reloj local corregido con `serverNow` y reconexión                                                                                                                               |

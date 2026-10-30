@@ -10,6 +10,8 @@ import { AuthError } from '../../domain/auth.error';
 import { AuthController } from './auth.controller';
 import { AuthGuard } from './auth.guard';
 import { AuthExceptionFilter } from './auth-exception.filter';
+import { AccountEmailsService } from './account-emails.service';
+import { AccountService } from './account.service';
 
 const profile = {
   id: randomUUID(),
@@ -19,11 +21,11 @@ const profile = {
 const password = randomUUID();
 const session = { accessToken: 'test-access', refreshToken: 'test-refresh' };
 const auth = {
-  register: jest.fn().mockResolvedValue(session),
+  register: jest.fn().mockResolvedValue({ session, userId: profile.id }),
   login: jest.fn().mockResolvedValue(session),
   refresh: jest.fn().mockResolvedValue(session),
   logout: jest.fn().mockResolvedValue(undefined),
-  me: jest.fn().mockResolvedValue(profile),
+  profile: jest.fn().mockResolvedValue(profile),
   verifyAccessToken: jest.fn().mockResolvedValue({ sub: profile.id }),
 };
 
@@ -38,7 +40,20 @@ describe('Auth HTTP', () => {
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: auth },
-        { provide: ENV, useValue: { NODE_ENV: 'test' } },
+        {
+          provide: ENV,
+          useValue: {
+            NODE_ENV: 'test',
+            PUBLIC_URL: 'http://localhost:3000',
+            TRUST_PROXY: 1,
+            APP_DOMAIN: 'localhost',
+          },
+        },
+        {
+          provide: AccountEmailsService,
+          useValue: { queueVerification: jest.fn() },
+        },
+        { provide: AccountService, useValue: {} },
         AuthGuard,
         AuthExceptionFilter,
       ],
@@ -127,12 +142,12 @@ describe('Auth HTTP', () => {
 
   it('protege /me y pasa el usuario autenticado a la aplicación', async () => {
     await request(app.getHttpServer()).get('/api/auth/me').expect(401);
-    expect(auth.me).not.toHaveBeenCalled();
+    expect(auth.profile).not.toHaveBeenCalled();
     await request(app.getHttpServer())
       .get('/api/auth/me')
       .set('Cookie', 'oc_at=test-access')
       .expect(200, profile);
     expect(auth.verifyAccessToken).toHaveBeenCalledWith('test-access');
-    expect(auth.me).toHaveBeenCalledWith(profile.id);
+    expect(auth.profile).toHaveBeenCalledWith(profile.id);
   });
 });

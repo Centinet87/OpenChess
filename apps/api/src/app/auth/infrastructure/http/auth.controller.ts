@@ -1,44 +1,79 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   HttpCode,
   Inject,
+  Patch,
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
   UseFilters,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
+import { perIpAndUser } from '../../../common/throttler.guard';
 import { ZodPipe } from '../../../common/zod.pipe';
 import { ENV } from '../../../config/config.module';
 import type { Env } from '../../../config/env';
-import { AuthService } from '../../application/auth.service';
-import type {
-  LoginInput,
-  RegisterInput,
-  UserProfile,
-} from '../../domain/auth.types';
-import { AuthExceptionFilter } from './auth-exception.filter';
 import { AuthGuard } from './auth.guard';
-import { loginSchema, registerSchema } from './auth.schemas';
+import { AccountEmailsService } from './account-emails.service';
+import { AccountService } from './account.service';
+import {
+  changeEmailSchema,
+  changePasswordSchema,
+  deleteAccountSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  tokenSchema,
+  type ChangeEmailInput,
+  type ChangePasswordInput,
+  type DeleteAccountInput,
+  type ForgotPasswordInput,
+  type LoginInput,
+  type RegisterInput,
+  type ResetPasswordInput,
+  type TokenInput,
+  type UpdateProfileInput,
+  updateProfileSchema,
+  type AccountExport,
+  type Profile,
+} from '@openchess/contracts';
+import { AuthService } from '../../application/auth.service';
+import { AuthError } from '../../domain/auth.error';
+import { AuthExceptionFilter } from './auth-exception.filter';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
   setSessionCookies,
 } from './cookies';
 
-// Login y registro: 5 intentos por minuto por IP.
-const STRICT = { default: { limit: 5, ttl: 60_000 } };
+// Login y registro: 5 intentos por minuto por IP y email, y por usuario si hay
+// sesión (ver AppThrottlerGuard).
+const STRICT = perIpAndUser(5);
+// Descargar los datos o eliminar la cuenta: piden sesión (y la contraseña, al eliminar).
+const ACCOUNT = perIpAndUser(10);
+
+/** cookie-parser convierte en objeto una cookie que empieza con "j:": solo sirve un string. */
+function refreshCookie(req: Request): string | undefined {
+  const value: unknown = req.cookies?.[REFRESH_COOKIE];
+  return typeof value === 'string' ? value : undefined;
+}
 
 @Controller('auth')
 @UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly emails: AccountEmailsService,
+    private readonly account: AccountService,
     private readonly cls: ClsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -49,8 +84,48 @@ export class AuthController {
     @Body(new ZodPipe(registerSchema)) body: RegisterInput,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
-    setSessionCookies(res, await this.auth.register(body), this.env);
+    const { session, userId } = await this.auth.register(body);
+    setSessionCookies(res, session, this.env);
+    this.emails.queueVerification(userId);
     return { ok: true };
+  }
+
+  /** El link del email de verificación lleva aquí (desde la página /verificar del front). */
+  @Post('verify-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async verifyEmail(
+    @Body(new ZodPipe(tokenSchema)) body: TokenInput,
+  ): Promise<void> {
+    await this.emails.verifyEmail(body.token);
+  }
+
+  @Post('verification-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  resendVerification(): void {
+    this.emails.queueVerification(this.cls.get('userId'));
+  }
+
+  /** Responde 204 exista o no la cuenta. */
+  @Post('forgot-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  forgotPassword(
+    @Body(new ZodPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+  ): void {
+    this.emails.requestPasswordReset(body.email);
+  }
+
+  /** Cambia la contraseña con el link del email y cierra todas las sesiones. */
+  @Post('reset-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async resetPassword(
+    @Body(new ZodPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ): Promise<void> {
+    await this.emails.resetPassword(body.token, body.password);
   }
 
   @Post('login')
@@ -73,12 +148,17 @@ export class AuthController {
     try {
       setSessionCookies(
         res,
-        await this.auth.refresh(req.cookies?.[REFRESH_COOKIE]),
+        await this.auth.refresh(refreshCookie(req)),
         this.env,
       );
       return { ok: true };
     } catch (error) {
-      clearSessionCookies(res, this.env);
+      // Solo si la sesión ya no sirve: ante una caída de la BD el usuario sigue logueado.
+      if (
+        error instanceof UnauthorizedException ||
+        (error instanceof AuthError && error.code === 'invalid_session')
+      )
+        clearSessionCookies(res, this.env);
       throw error;
     }
   }
@@ -89,13 +169,88 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
-    await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
+    await this.auth.logout(refreshCookie(req));
     clearSessionCookies(res, this.env);
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
-  async me(): Promise<UserProfile> {
-    return this.auth.me(this.cls.get('userId'));
+  me(): Promise<Profile> {
+    return this.auth.profile(this.cls.get('userId'));
+  }
+
+  /** Cambia el nombre visible. */
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  updateMe(
+    @Body(new ZodPipe(updateProfileSchema)) body: UpdateProfileInput,
+  ): Promise<Profile> {
+    return this.auth.updateProfile(this.cls.get('userId'), body);
+  }
+
+  /** Cambia la contraseña con la actual; las demás sesiones se cierran. */
+  @Post('change-password')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  async changePassword(
+    @Body(new ZodPipe(changePasswordSchema)) body: ChangePasswordInput,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    const userId = this.cls.get('userId');
+    setSessionCookies(
+      res,
+      await this.auth.changePassword(userId, body),
+      this.env,
+    );
+    this.emails.queuePasswordChanged(userId);
+  }
+
+  /** Manda un link al email nuevo; la cuenta lo usa recién al confirmarlo. */
+  @Post('change-email')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  @UseGuards(AuthGuard)
+  async changeEmail(
+    @Body(new ZodPipe(changeEmailSchema)) body: ChangeEmailInput,
+  ): Promise<void> {
+    await this.emails.requestEmailChange(
+      this.cls.get('userId'),
+      body.password,
+      body.newEmail,
+    );
+  }
+
+  /** El link del email nuevo lleva aquí (desde la página /cambiar-email del front). */
+  @Post('confirm-email-change')
+  @HttpCode(204)
+  @Throttle(STRICT)
+  async confirmEmailChange(
+    @Body(new ZodPipe(tokenSchema)) body: TokenInput,
+  ): Promise<void> {
+    await this.emails.confirmEmailChange(body.token);
+  }
+
+  /** Todos los datos de la persona en JSON (acceso y portabilidad). */
+  @Get('account/export')
+  @Throttle(ACCOUNT)
+  @UseGuards(AuthGuard)
+  @Header('Content-Disposition', 'attachment; filename="openchess-datos.json"')
+  @Header('Cache-Control', 'no-store')
+  exportAccount(): Promise<AccountExport> {
+    return this.account.export(this.cls.get('userId'));
+  }
+
+  /** Elimina la cuenta (pide la contraseña) y cierra la sesión. */
+  @Delete('account')
+  @HttpCode(204)
+  @Throttle(ACCOUNT)
+  @UseGuards(AuthGuard)
+  async deleteAccount(
+    @Body(new ZodPipe(deleteAccountSchema)) body: DeleteAccountInput,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.account.delete(this.cls.get('userId'), body.password);
+    clearSessionCookies(res, this.env);
   }
 }

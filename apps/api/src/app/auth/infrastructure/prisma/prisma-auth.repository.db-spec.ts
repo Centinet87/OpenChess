@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 import { ClsService } from 'nestjs-cls';
 import { createPrismaClient } from '@openchess/database';
 import { TenantPrisma } from '../../../infrastructure/prisma.module';
-import { REFRESH_TTL_MS } from '../../domain/auth.types';
+import { REFRESH_TTL_MS, REFRESH_GRACE_MS } from '../../domain/auth.types';
 import { AuthError } from '../../domain/auth.error';
 import { PrismaAuthRepository } from './prisma-auth.repository';
 
@@ -118,6 +118,10 @@ describe('PrismaAuthRepository', () => {
     await expect(
       repository.rotateRefreshToken(old.tokenHash, replacement()),
     ).resolves.toEqual({ userId });
+    await base.refreshToken.update({
+      where: { id: old.id },
+      data: { rotatedAt: new Date(Date.now() - REFRESH_GRACE_MS - 1) },
+    });
     await expect(
       repository.rotateRefreshToken(old.tokenHash, replacement()),
     ).resolves.toBeNull();
@@ -133,19 +137,19 @@ describe('PrismaAuthRepository', () => {
     ).toBe(1);
   });
 
-  it('dos rotaciones concurrentes detectan el reuso y revocan la familia', async () => {
+  it('dos rotaciones concurrentes respetan la gracia sin cerrar la familia', async () => {
     const old = await seedSession();
     const results = await Promise.all([
       repository.rotateRefreshToken(old.tokenHash, replacement()),
       otherRepository.rotateRefreshToken(old.tokenHash, replacement()),
     ]);
-    expect(results.filter(Boolean)).toHaveLength(1);
-    expect(results.filter((result) => result === null)).toHaveLength(1);
+    expect(results.filter(Boolean)).toHaveLength(2);
+    expect(results.filter((result) => result === null)).toHaveLength(0);
     expect(
       await base.refreshToken.count({
         where: { familyId: old.familyId, revokedAt: null },
       }),
-    ).toBe(0);
+    ).toBe(2);
   });
 
   it('logout espera la rotación en curso y revoca también su reemplazo', async () => {

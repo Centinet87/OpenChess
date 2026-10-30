@@ -11,7 +11,9 @@
     "sourceRoot": "apps/web/src"
   },
   "dependencies": {
-    "next": "~16.1.6",
+    "@next/eslint-plugin-next": "~16.4.3",
+    "eslint-config-next": "~16.4.3",
+    "next": "~16.4.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   }

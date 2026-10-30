@@ -17,6 +17,7 @@
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.db-spec.ts",
+    "src/testing/**",
     "src/**/*.test.ts",
     "eslint.config.js",
     "eslint.config.cjs",
@@ -24,7 +25,25 @@
   ],
   "references": [
     {
+      "path": "../../libs/ratings/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/linked-accounts/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/games/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/database/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/contracts/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/clubs/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/billing/tsconfig.lib.json"
     }
   ]
 }

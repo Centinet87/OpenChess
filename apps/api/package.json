@@ -66,19 +66,21 @@
           }
         }
       },
-      "test": {
-        "options": {
-          "passWithNoTests": true
-        }
-      },
       "test-db": {
         "command": "jest --config jest.db.config.cts --runInBand",
         "options": {
           "cwd": "{projectRoot}"
         },
         "dependsOn": [
-          "^generate"
+          "^generate",
+          "^migrate-deploy"
         ]
+      },
+      "seed-demo": {
+        "command": "node scripts/seed-demo.mjs",
+        "options": {
+          "cwd": "{projectRoot}"
+        }
       }
     }
   },
@@ -87,13 +89,24 @@
     "@nestjs/core": "^11.0.0",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/platform-socket.io": "^11.2.8",
     "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^11.2.8",
     "@node-rs/argon2": "^2.2.2",
+    "@openchess/billing": "^0.0.1",
+    "@openchess/clubs": "^0.0.1",
+    "@openchess/contracts": "^0.0.1",
     "@openchess/database": "^0.0.1",
+    "@openchess/games": "^0.0.1",
+    "@openchess/linked-accounts": "^0.0.1",
+    "@openchess/ratings": "^0.0.1",
+    "cookie": "^1.1.1",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^18.0.9",
     "nestjs-cls": "^7.0.2",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
+    "socket.io": "^4.8.4",
     "tslib": "^2.3.0",
     "zod": "^4.6.7"
   },

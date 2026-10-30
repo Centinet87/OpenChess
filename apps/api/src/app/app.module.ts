@@ -5,26 +5,44 @@ import {
   type NestModule,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
 import { ConfigModule } from './config/config.module';
+import { ClubsModule } from '../clubs/clubs.module';
+import { GamesModule } from '../games/games.module';
+import {
+  AppThrottlerGuard,
+  EMAIL_THROTTLER,
+  USER_THROTTLER,
+} from './common/throttler.guard';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './infrastructure/prisma.module';
+import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { TenantMiddleware } from './tenant/tenant.middleware';
+import { TenantModule } from './tenant/tenant.module';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 
 @Module({
   imports: [
     ClsModule.forRoot({ global: true, middleware: { mount: true } }),
-    // shortcut: el conteo vive en memoria, así que con varias instancias cada una cuenta por separado. Pasar a Redis al escalar.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    // Limitación: el conteo vive en memoria, así que con varias instancias cada una cuenta por separado. Pasar a Redis al escalar.
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 100 },
+      EMAIL_THROTTLER,
+      USER_THROTTLER,
+    ]),
     ConfigModule,
     PrismaModule,
+    TenantModule,
     AuthModule,
+    ClubsModule,
+    GamesModule,
+    RatingsModule,
+    LinkedAccountsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

@@ -19,6 +19,9 @@ export interface CreateRefreshTokenInput extends RefreshTokenInput {
 export interface AuthRepository {
   findUserByEmail(email: string): Promise<UserCredentials | null>;
   findUserById(userId: string): Promise<UserProfile | null>;
+  findUserCredentials(userId: string): Promise<UserCredentials | null>;
+  updateDisplayName(userId: string, displayName: string): Promise<void>;
+  changePassword(userId: string, passwordHash: string): Promise<void>;
   createUser(input: CreateUserInput): Promise<{ id: string }>;
   createRefreshToken(input: CreateRefreshTokenInput): Promise<void>;
   rotateRefreshToken(

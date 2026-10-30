@@ -8,6 +8,15 @@ import { AuthExceptionFilter } from './infrastructure/http/auth-exception.filter
 import { AuthGuard } from './infrastructure/http/auth.guard';
 import { PrismaAuthRepository } from './infrastructure/prisma/prisma-auth.repository';
 import { NodeAuthCrypto } from './infrastructure/security/node-auth.crypto';
+import { AccountEmailsService } from './infrastructure/http/account-emails.service';
+import { AccountService } from './infrastructure/http/account.service';
+import { TokenCleanup } from './infrastructure/http/token-cleanup';
+import {
+  LogMailer,
+  MAILER,
+  ResendMailer,
+  type Mailer,
+} from './infrastructure/http/mailer';
 
 @Module({
   imports: [
@@ -38,6 +47,17 @@ import { NodeAuthCrypto } from './infrastructure/security/node-auth.crypto';
     },
     AuthGuard,
     AuthExceptionFilter,
+    AccountEmailsService,
+    AccountService,
+    TokenCleanup,
+    {
+      provide: MAILER,
+      inject: [ENV],
+      useFactory: (env: Env): Mailer =>
+        env.RESEND_API_KEY
+          ? new ResendMailer(env.RESEND_API_KEY, env.EMAIL_FROM)
+          : new LogMailer(),
+    },
   ],
   exports: [AuthService, AuthGuard],
 })

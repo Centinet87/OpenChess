@@ -1,5 +1,4 @@
-/** Subdominios que no son clubes. */
-const RESERVED = new Set(['www', 'api', 'app', 'admin']);
+import { RESERVED_SUBDOMAINS } from '@openchess/clubs';
 
 /**
  * Saca el slug del club del Host: "miclub.openchess.app" → "miclub".
@@ -17,5 +16,20 @@ export function resolveClubSlug(
 
   const slug = hostname.slice(0, -(domain.length + 1));
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
-  return RESERVED.has(slug) ? null : slug;
+  return RESERVED_SUBDOMAINS.has(slug) ? null : slug;
+}
+
+/**
+ * Origen del sitio de un club: el esquema y el puerto de la URL pública del
+ * front, con el subdominio del club sobre APP_DOMAIN.
+ * ("https://www.openchess.app", "openchess.app", "miclub") → "https://miclub.openchess.app".
+ */
+export function clubOrigin(
+  publicUrl: string,
+  appDomain: string,
+  slug: string,
+): string {
+  const url = new URL(publicUrl);
+  url.hostname = `${slug}.${appDomain}`;
+  return url.origin;
 }

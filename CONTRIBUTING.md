@@ -14,4 +14,4 @@
 
 ## Seguridad
 
-Si encuentras una vulnerabilidad, no abras un issue público. Escríbele a quienes mantienen el repo por un canal privado.
+Si encuentras una vulnerabilidad, no abras un issue público. Sigue los pasos de [SECURITY.md](SECURITY.md).

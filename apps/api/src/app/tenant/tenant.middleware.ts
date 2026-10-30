@@ -10,13 +10,16 @@ import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
 import { TenantPrisma } from '../infrastructure/prisma.module';
 import { resolveClubSlug } from './club-slug';
+import { ClubSlugCache } from './club-slug.cache';
 
 /**
- * Fija el club de la request a partir del subdominio. Detrás del proxy de Next
- * el Host original llega en X-Forwarded-Host.
+ * Anota qué club pide la request según el subdominio. Detrás del proxy de Next
+ * el Host original llega en X-Forwarded-Host; solo se lee si hay proxies de
+ * confianza (TRUST_PROXY > 0), porque si no lo puede inventar el cliente.
  *
- * Fijar el club no da acceso a nada: RLS limita las filas al club, y los guards
- * de rol exigen además una membresía del usuario en ese club.
+ * Solo deja `requestedClubId`. El `clubId` que usa RLS lo fija ClubMemberGuard
+ * después de comprobar la membresía: si una ruta olvida el guard, RLS no
+ * devuelve filas del club en vez de devolvérselas a cualquiera.
  */
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
@@ -24,20 +27,33 @@ export class TenantMiddleware implements NestMiddleware {
     @Inject(ENV) private readonly env: Env,
     private readonly prisma: TenantPrisma,
     private readonly cls: ClsService,
+    private readonly slugs: ClubSlugCache,
   ) {}
 
   async use(req: Request, _res: Response, next: NextFunction): Promise<void> {
-    const host = req.header('x-forwarded-host') ?? req.header('host');
+    const forwarded =
+      this.env.TRUST_PROXY > 0 ? req.header('x-forwarded-host') : undefined;
+    const host = forwarded ?? req.header('host');
     const slug = resolveClubSlug(host, this.env.APP_DOMAIN);
     if (!slug) return next();
 
+    const clubId = await this.clubId(slug);
+    if (!clubId) throw new NotFoundException('Club no encontrado');
+
+    this.cls.set('requestedClubId', clubId);
+    this.cls.set('clubSlug', slug);
+    next();
+  }
+
+  private async clubId(slug: string): Promise<string | null> {
+    const cached = this.slugs.get(slug);
+    if (cached !== undefined) return cached;
     const club = await this.prisma.client.club.findUnique({
       where: { slug },
       select: { id: true },
     });
-    if (!club) throw new NotFoundException('Club no encontrado');
-
-    this.cls.set('clubId', club.id);
-    next();
+    const id = club?.id ?? null;
+    this.slugs.set(slug, id);
+    return id;
   }
 }

@@ -2,20 +2,15 @@
 // Toda tabla con datos de un club lleva club_id y una política RLS (ver migraciones).
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  // CommonJS: en ESM el cliente usa import.meta.url, webpack lo trata como módulo
+  // ESM y se pierde el export ("PrismaClient is not a constructor" al arrancar la API).
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
-}
-
-enum MemberRole {
-  OWNER
-  COACH
-  STUDENT
-
-  @@map("member_role")
 }
 
 /// Cuenta global: una persona puede ser miembro de varios clubes.
@@ -31,6 +26,13 @@ model User {
   memberships        Membership[]
   refreshTokens      RefreshToken[]
   invitationsCreated Invitation[]
+  gamesAsWhite       Game[]          @relation("white")
+  gamesAsBlack       Game[]          @relation("black")
+  ratings            Rating[]
+  ratingChanges      RatingChange[]  @relation("player")
+  rivalRatingChanges RatingChange[]  @relation("opponent")
+  linkedAccounts     LinkedAccount[]
+  emailTokens        EmailToken[]
 
   @@map("users")
 }
@@ -44,38 +46,74 @@ model Club {
 
   memberships Membership[]
   invitations Invitation[]
+  games       Game[]
+
+  ratings       Rating[]
+  ratingChanges RatingChange[]
+  importedGames ImportedGame[]
+  fideLinks     FideLink[]
+  roles         ClubRole[]
+  subscription  Subscription?
 
   @@map("clubs")
 }
 
-model Membership {
-  id        String     @id @default(uuid()) @db.Uuid
-  clubId    String     @map("club_id") @db.Uuid
-  userId    String     @map("user_id") @db.Uuid
-  role      MemberRole
-  createdAt DateTime   @default(now()) @map("created_at")
+/// Rol de un club (ver libs/clubs). Cada club define los suyos, con permisos,
+/// orden y color. Parte con Admin (dueño), Profesor y Alumno.
+model ClubRole {
+  id          String   @id @db.Uuid
+  clubId      String   @map("club_id") @db.Uuid
+  name        String
+  color       String?
+  /// 0 es el más alto de la jerarquía.
+  position    Int
+  /// Rol dueño: todos los permisos, no se borra y el club siempre tiene alguien con él.
+  isOwner     Boolean  @default(false) @map("is_owner")
+  permissions String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@unique([clubId, name])
+  @@index([clubId, position])
+  @@map("club_roles")
+}
+
+model Membership {
+  id        String   @id @default(uuid()) @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  club Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Restrict: un rol con miembros no se borra (también lo exige el dominio).
+  role ClubRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
   @@unique([clubId, userId])
   @@index([userId])
+  @@index([roleId])
   @@map("memberships")
 }
 
 /// Link de invitación. Se guarda el SHA-256 del token, nunca el token.
 model Invitation {
-  id          String     @id @default(uuid()) @db.Uuid
-  clubId      String     @map("club_id") @db.Uuid
-  tokenHash   String     @unique @map("token_hash")
-  role        MemberRole
-  createdById String     @map("created_by_id") @db.Uuid
-  expiresAt   DateTime   @map("expires_at")
-  acceptedAt  DateTime?  @map("accepted_at")
-  createdAt   DateTime   @default(now()) @map("created_at")
+  id          String    @id @default(uuid()) @db.Uuid
+  clubId      String    @map("club_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  roleId      String    @map("role_id") @db.Uuid
+  createdById String    @map("created_by_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
-  club      Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  // Si se borra el rol, sus invitaciones pendientes dejan de servir.
+  role      ClubRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@index([clubId])
   @@map("invitations")
@@ -84,17 +122,231 @@ model Invitation {
 /// Refresh token rotativo. family_id agrupa la cadena de rotaciones:
 /// si se reusa un token ya rotado, se revoca la familia entera.
 model RefreshToken {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @map("user_id") @db.Uuid
-  tokenHash  String    @unique @map("token_hash")
-  familyId   String    @map("family_id") @db.Uuid
-  expiresAt  DateTime  @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  /// Cuándo se cambió por uno nuevo. Distingue una rotación de un logout o un robo.
+  rotatedAt DateTime? @map("rotated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+enum GameStatus {
+  PENDING
+  IN_PROGRESS
+  FINISHED
+
+  @@map("game_status")
+}
+
+/// Partida. El PGN y el reloj alcanzan para reconstruirla (ver libs/games).
+model Game {
+  id           String     @id @db.Uuid
+  clubId       String     @map("club_id") @db.Uuid
+  whiteId      String     @map("white_id") @db.Uuid
+  blackId      String     @map("black_id") @db.Uuid
+  challengerId String     @map("challenger_id") @db.Uuid
+  timeKind     String     @map("time_kind")
+  initialMs    Int        @map("initial_ms")
+  incrementMs  Int        @map("increment_ms")
+  pgn          String     @default("")
+  /// whiteMs, blackMs, running, since (ver ClockState)
+  clock        Json
+  drawOfferBy  String?    @map("draw_offer_by")
+  status       GameStatus
+  result       String?
+  termination  String?
+  /// Control de concurrencia optimista: sube en cada cambio.
+  version      Int        @default(0)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  club  Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  white User @relation("white", fields: [whiteId], references: [id], onDelete: Cascade)
+  black User @relation("black", fields: [blackId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, status])
+  @@index([whiteId])
+  @@index([blackId])
+  @@map("games")
+}
+
+/// Rating Glicko-2 de un jugador en un club (ver libs/ratings). Se crea con su primera partida.
+model Rating {
+  clubId     String   @map("club_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  rating     Float
+  deviation  Float
+  volatility Float
+  games      Int
+  wins       Int
+  draws      Int
+  losses     Int
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@index([clubId, rating])
+  @@map("ratings")
+}
+
+/// Cómo cambió el rating de un jugador en una partida. Una fila por jugador:
+/// el índice único impide contar dos veces la misma partida. game_id es una
+/// partida del club (games) o una importada (imported_games), por eso no tiene FK.
+model RatingChange {
+  id           String   @id @default(uuid()) @db.Uuid
+  clubId       String   @map("club_id") @db.Uuid
+  gameId       String   @map("game_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  opponentId   String   @map("opponent_id") @db.Uuid
+  score        Float
+  ratingBefore Float    @map("rating_before")
+  ratingAfter  Float    @map("rating_after")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  club     Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user     User @relation("player", fields: [userId], references: [id], onDelete: Cascade)
+  opponent User @relation("opponent", fields: [opponentId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([clubId, userId, createdAt])
+  @@map("rating_changes")
+}
+
+enum ChessPlatform {
+  LICHESS
+  CHESSCOM
+
+  @@map("chess_platform")
+}
+
+/// Cuenta de Lichess o Chess.com de un usuario (ver libs/linked-accounts).
+/// Una cuenta verificada es de una sola persona: lo asegura un índice único
+/// parcial en la migración, que Prisma no sabe expresar.
+model LinkedAccount {
+  id               String        @id @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  platform         ChessPlatform
+  /// En minúsculas, como lo identifica la plataforma.
+  username         String
+  displayName      String        @map("display_name")
+  /// Código que hay que poner en el perfil de Chess.com. null una vez verificada.
+  verificationCode String?       @map("verification_code")
+  verifiedAt       DateTime?     @map("verified_at")
+  /// bullet, blitz, rapid, classical, daily
+  ratings          Json          @default("{}")
+  ratingsUpdatedAt DateTime?     @map("ratings_updated_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@index([platform, username])
+  @@map("linked_accounts")
+}
+
+/// Partida jugada en Lichess o Chess.com que un miembro trajo al club.
+model ImportedGame {
+  id          String        @id @db.Uuid
+  clubId      String        @map("club_id") @db.Uuid
+  platform    ChessPlatform
+  externalId  String        @map("external_id")
+  url         String
+  whiteName   String        @map("white_name")
+  blackName   String        @map("black_name")
+  /// Miembros del club con esa cuenta verificada; null si el jugador no es del club.
+  whiteUserId String?       @map("white_user_id") @db.Uuid
+  blackUserId String?       @map("black_user_id") @db.Uuid
+  result      String?
+  speed       String
+  /// Ajedrez estándar (no Chess960 ni otras variantes): solo esas cuentan para el ranking.
+  standard    Boolean
+  pgn         String
+  playedAt    DateTime      @map("played_at")
+  importedBy  String        @map("imported_by") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, platform, externalId])
+  @@index([clubId, playedAt])
+  @@map("imported_games")
+}
+
+/// FIDE ID de un miembro, agregado por un admin del club. FIDE no tiene login,
+/// así que la confianza es la del club: vale solo dentro de este club.
+model FideLink {
+  clubId           String   @map("club_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  fideId           String   @map("fide_id")
+  name             String
+  federation       String?
+  title            String?
+  /// standard, rapid, blitz
+  ratings          Json     @default("{}")
+  ratingsUpdatedAt DateTime @map("ratings_updated_at")
+  linkedBy         String   @map("linked_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([clubId, userId])
+  @@unique([clubId, fideId])
+  @@map("fide_links")
+}
+
+enum EmailTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+  CHANGE_EMAIL
+
+  @@map("email_token_purpose")
+}
+
+/// Link de un solo uso que se manda por email (verificar la cuenta, recuperar la
+/// contraseña, cambiar el email). Se guarda el SHA-256 del token, nunca el token.
+model EmailToken {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique @map("token_hash")
+  expiresAt DateTime          @map("expires_at")
+  usedAt    DateTime?         @map("used_at")
+  /// CHANGE_EMAIL: el email nuevo, que pasa a la cuenta al usar el link.
+  newEmail  String?           @map("new_email")
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("email_tokens")
+}
+
+/// Suscripción del club al plan pagado (ver libs/billing). Sin fila, el club
+/// está en el plan gratis. El estado lo confirma Mercado Pago, no el cliente.
+model Subscription {
+  clubId                 String    @id @map("club_id") @db.Uuid
+  provider               String
+  /// Id de la suscripción en el proveedor (preapproval de Mercado Pago).
+  providerSubscriptionId String    @unique @map("provider_subscription_id")
+  /// pending, active, paused o cancelled
+  status                 String
+  payerEmail             String    @map("payer_email")
+  nextPaymentAt          DateTime? @map("next_payment_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }

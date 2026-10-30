@@ -1,7 +1,8 @@
-import baseConfig from '../../eslint.config.mjs';
+import baseConfig, { asyncRules } from '../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
+  ...asyncRules,
   {
     ignores: ['**/out-tsc'],
   },

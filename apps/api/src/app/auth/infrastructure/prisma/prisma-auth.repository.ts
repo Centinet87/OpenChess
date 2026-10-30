@@ -8,6 +8,7 @@ import type {
   RefreshTokenInput,
 } from '../../application/ports/auth.repository';
 import { AuthError } from '../../domain/auth.error';
+import { REFRESH_GRACE_MS } from '../../domain/auth.types';
 import type {
   RefreshToken,
   UserCredentials,
@@ -25,10 +26,42 @@ export class PrismaAuthRepository implements AuthRepository {
     });
   }
 
-  findUserById(userId: string): Promise<UserProfile | null> {
+  async findUserById(userId: string): Promise<UserProfile | null> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        emailVerifiedAt: true,
+      },
+    });
+    if (!user) return null;
+    const { emailVerifiedAt, ...profile } = user;
+    return { ...profile, emailVerified: emailVerifiedAt !== null };
+  }
+
+  findUserCredentials(userId: string): Promise<UserCredentials | null> {
     return this.prisma.client.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, displayName: true },
+      select: { id: true, passwordHash: true },
+    });
+  }
+
+  async updateDisplayName(userId: string, displayName: string): Promise<void> {
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { displayName },
+    });
+  }
+
+  async changePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.client.$tenantTransaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
     });
   }
 
@@ -64,20 +97,34 @@ export class PrismaAuthRepository implements AuthRepository {
       const stored = await this.lockSession(tx, tokenHash);
       if (!stored) return null;
       const now = new Date();
-      if (stored.revokedAt) {
-        await tx.refreshToken.updateMany({
-          where: { familyId: stored.familyId, revokedAt: null },
-          data: { revokedAt: now },
-        });
-        // Se devuelve null para confirmar la revocación antes del 401.
-        return null;
-      }
       if (stored.expiresAt <= now) return null;
-
-      await tx.refreshToken.update({
-        where: { id: stored.id },
-        data: { revokedAt: now },
-      });
+      if (stored.revokedAt) {
+        const recent =
+          stored.rotatedAt &&
+          now.getTime() - stored.rotatedAt.getTime() <= REFRESH_GRACE_MS;
+        const alive =
+          recent &&
+          (await tx.refreshToken.count({
+            where: {
+              familyId: stored.familyId,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+          }));
+        if (!alive) {
+          await tx.refreshToken.updateMany({
+            where: { familyId: stored.familyId, revokedAt: null },
+            data: { revokedAt: now },
+          });
+          // Confirmar la revocación antes de responder 401.
+          return null;
+        }
+      } else {
+        await tx.refreshToken.update({
+          where: { id: stored.id },
+          data: { revokedAt: now, rotatedAt: now },
+        });
+      }
       await tx.refreshToken.create({
         data: {
           ...replacement,

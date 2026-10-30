@@ -20,6 +20,9 @@ describe('AuthService', () => {
     repository = {
       findUserByEmail: jest.fn().mockResolvedValue(null),
       findUserById: jest.fn().mockResolvedValue(null),
+      findUserCredentials: jest.fn().mockResolvedValue(user),
+      updateDisplayName: jest.fn().mockResolvedValue(undefined),
+      changePassword: jest.fn().mockResolvedValue(undefined),
       createUser: jest.fn().mockResolvedValue({ id: user.id }),
       createRefreshToken: jest.fn().mockResolvedValue(undefined),
       rotateRefreshToken: jest.fn().mockResolvedValue({ userId: user.id }),
@@ -40,8 +43,8 @@ describe('AuthService', () => {
   it('registra con contraseña hasheada y persiste solo el hash del refresh', async () => {
     const before = Date.now();
     await expect(auth.register(input)).resolves.toEqual({
-      accessToken: 'access-token',
-      refreshToken: 'opaque-token',
+      session: { accessToken: 'access-token', refreshToken: 'opaque-token' },
+      userId: user.id,
     });
     expect(repository.createUser).toHaveBeenCalledWith({
       email: input.email,
@@ -144,10 +147,11 @@ describe('AuthService', () => {
       id: user.id,
       email: input.email,
       displayName: input.displayName,
+      emailVerified: false,
     };
     repository.findUserById.mockResolvedValueOnce(profile);
-    await expect(auth.me(user.id)).resolves.toEqual(profile);
-    await expect(auth.me(user.id)).rejects.toMatchObject({
+    await expect(auth.profile(user.id)).resolves.toEqual(profile);
+    await expect(auth.profile(user.id)).rejects.toMatchObject({
       code: 'user_not_found',
     });
   });

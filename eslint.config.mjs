@@ -2,6 +2,28 @@ import nx from '@nx/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * Reglas con información de tipos para el código async del backend: una promesa
+ * que nadie espera se traga el error (p. ej. un bootstrap() sin catch).
+ * Las usan apps/api y las libs desde su propio eslint.config.mjs.
+ */
+export const asyncRules = [
+  {
+    files: ['**/src/**/*.ts'],
+    ignores: ['**/src/generated/**'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+    },
+  },
+];
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],

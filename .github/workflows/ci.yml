@@ -1,16 +1,39 @@
 name: CI
 
-# Solo manual (pestaña Actions → Run workflow). El chequeo de cada push corre
-# en local con el hook pre-push (`npm run check`).
+# Corre en cada PR hacia main o desa, y a mano desde la pestaña Actions.
+# El hook pre-push corre lo mismo en local antes de cada push (`npm run check`).
 on:
+  pull_request:
+    branches: [main, desa]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   main:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # Misma imagen que docker-compose.yml. Lo usan los tests de aislamiento (RLS) y de auth.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: openchess
+          POSTGRES_PASSWORD: openchess
+          POSTGRES_DB: openchess
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U openchess"
+          --health-interval 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v5
         with:
@@ -19,15 +42,41 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: 'npm'
 
       - run: npm ci
 
-      # Base de `affected`: la rama destino en un PR, o la misma rama en un push
+      - name: Crear .env
+        run: |
+          cp .env.example .env
+          secret=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+          sed -i "s|^JWT_SECRET=.*|JWT_SECRET=\"$secret\"|" .env
+
+      # En un PR, affected compara contra la rama destino. A mano no hay rama
+      # destino, así que se verifica todo para no terminar en verde sin correr nada.
       - uses: nrwl/nx-set-shas@v4
+        if: github.event_name == 'pull_request'
         with:
-          main-branch-name: ${{ github.base_ref || github.ref_name }}
+          main-branch-name: ${{ github.base_ref }}
 
       - run: npx nx format:check
-      - run: npx nx affected -t lint typecheck test build
+
+      - name: lint, typecheck, test, test-db y build
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npx nx affected -t lint typecheck test test-db build
+          else
+            npx nx run-many -t lint typecheck test test-db build
+          fi
+
+      # Que compile no basta: el bundle de webpack puede romper el cliente de Prisma al arrancar.
+      - name: La API compilada arranca
+        run: |
+          npx nx run api:build
+          node apps/api/dist/main.js &
+          for i in $(seq 1 30); do
+            curl -sf localhost:3333/api && exit 0
+            sleep 1
+          done
+          exit 1
