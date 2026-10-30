@@ -292,7 +292,7 @@ function endOfGame(
 
 /**
  * Sin rey y una sola pieza menor (o solo el rey) no se puede dar mate.
- * shortcut: no detecta posiciones raras donde igual hay mate posible (p. ej. con peones del rival).
+ * Limitación: no detecta posiciones raras donde igual hay mate posible (p. ej. con peones del rival).
  */
 function canMate(board: Chess, color: Color): boolean {
   const pieces = board

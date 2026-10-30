@@ -8,13 +8,26 @@
       "scope:web",
       "type:app"
     ],
-    "sourceRoot": "apps/web/src"
+    "sourceRoot": "apps/web/src",
+    "targets": {
+      "build": {
+        "dependsOn": [
+          "^build",
+          "^typecheck"
+        ]
+      }
+    }
   },
   "dependencies": {
     "@next/eslint-plugin-next": "~16.4.3",
+    "@openchess/contracts": "^0.0.1",
+    "axios": "^1.21.0",
+    "chess.js": "^1.4.0",
     "eslint-config-next": "~16.4.3",
     "next": "~16.4.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-chessboard": "^5.12.1",
+    "react-dom": "^19.0.0",
+    "socket.io-client": "^4.8.4"
   }
 }
