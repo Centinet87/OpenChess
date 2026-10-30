@@ -55,7 +55,7 @@ jobs:
 
       # En un PR, affected compara contra la rama destino. A mano no hay rama
       # destino, así que se verifica todo para no terminar en verde sin correr nada.
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
         if: github.event_name == 'pull_request'
         with:
           main-branch-name: ${{ github.base_ref }}
