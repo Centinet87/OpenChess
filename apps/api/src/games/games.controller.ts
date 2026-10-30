@@ -20,8 +20,8 @@ import { GamesUseCases } from '@openchess/games';
 import { ClsService } from 'nestjs-cls';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
-import { ZodPipe } from '../common/zod.pipe';
-import { AuthGuard } from '../identity/auth.guard';
+import { ZodPipe } from '../app/common/zod.pipe';
+import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
 import { toView } from './game-view';
 
 /**

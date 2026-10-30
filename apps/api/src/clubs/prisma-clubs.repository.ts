@@ -14,8 +14,8 @@ import {
   type RolesRepository,
 } from '@openchess/clubs';
 import { createPrismaClient, tenantTransaction } from '@openchess/database';
-import { BASE_PRISMA, TenantPrisma } from '../infrastructure/prisma.module';
-import { ClubSlugCache } from '../tenant/club-slug.cache';
+import { BASE_PRISMA, TenantPrisma } from '../app/infrastructure/prisma.module';
+import { ClubSlugCache } from '../app/tenant/club-slug.cache';
 
 interface RoleRow {
   id: string;

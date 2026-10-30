@@ -13,7 +13,7 @@ import type {
 import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../identity/cookies';
+import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
 import { RatingsListener } from '../ratings/ratings.listener';
 import type { LichessOAuth } from './lichess';
 import { LICHESS_OAUTH } from './linked-accounts.controller';

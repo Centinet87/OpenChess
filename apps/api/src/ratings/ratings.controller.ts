@@ -18,7 +18,7 @@ import {
 } from '@openchess/ratings';
 import { ClsService } from 'nestjs-cls';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
-import { AuthGuard } from '../identity/auth.guard';
+import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
 
 function toView(s: PlayerRatingSnapshot): RatingView {
   return {

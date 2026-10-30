@@ -20,12 +20,12 @@ import { parse as parseCookies } from 'cookie';
 import { ClsService } from 'nestjs-cls';
 import type { Namespace, Socket } from 'socket.io';
 import type { ZodType } from 'zod';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { AuthService } from '../identity/auth.service';
-import { isAllowedOrigin } from '../common/origin';
-import { ACCESS_COOKIE } from '../identity/cookies';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { ENV } from '../app/config/config.module';
+import type { Env } from '../app/config/env';
+import { AuthService } from '../app/auth/application/auth.service';
+import { isAllowedOrigin } from '../app/common/origin';
+import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 import { GameEventsHub } from './game-events.hub';
 import { toView } from './game-view';
 

@@ -8,15 +8,15 @@ import {
   type OnModuleDestroy,
 } from '@nestjs/common';
 import type { ApiError } from '@openchess/contracts';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { ENV } from '../../../config/config.module';
+import type { Env } from '../../../config/env';
+import { TenantPrisma } from '../../../infrastructure/prisma.module';
 import {
   generateOpaqueToken,
   hashPassword,
   sha256,
   verifyPassword,
-} from './crypto';
+} from '../security/crypto';
 import {
   confirmEmailChange,
   emailChanged,

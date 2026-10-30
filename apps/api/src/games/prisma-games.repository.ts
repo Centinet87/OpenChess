@@ -10,7 +10,7 @@ import type {
   Termination,
   TimeControlKind,
 } from '@openchess/games';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 type DbStatus = 'PENDING' | 'IN_PROGRESS' | 'FINISHED';
 

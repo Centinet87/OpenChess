@@ -12,14 +12,15 @@ import {
   Res,
   UnauthorizedException,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
-import { perIpAndUser } from '../common/throttler.guard';
-import { ZodPipe } from '../common/zod.pipe';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
+import { perIpAndUser } from '../../../common/throttler.guard';
+import { ZodPipe } from '../../../common/zod.pipe';
+import { ENV } from '../../../config/config.module';
+import type { Env } from '../../../config/env';
 import { AuthGuard } from './auth.guard';
 import { AccountEmailsService } from './account-emails.service';
 import { AccountService } from './account.service';
@@ -45,7 +46,9 @@ import {
   type AccountExport,
   type Profile,
 } from '@openchess/contracts';
-import { AuthService } from './auth.service';
+import { AuthService } from '../../application/auth.service';
+import { AuthError } from '../../domain/auth.error';
+import { AuthExceptionFilter } from './auth-exception.filter';
 import {
   clearSessionCookies,
   REFRESH_COOKIE,
@@ -65,6 +68,7 @@ function refreshCookie(req: Request): string | undefined {
 }
 
 @Controller('auth')
+@UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
@@ -150,7 +154,10 @@ export class AuthController {
       return { ok: true };
     } catch (error) {
       // Solo si la sesión ya no sirve: ante una caída de la BD el usuario sigue logueado.
-      if (error instanceof UnauthorizedException)
+      if (
+        error instanceof UnauthorizedException ||
+        (error instanceof AuthError && error.code === 'invalid_session')
+      )
         clearSessionCookies(res, this.env);
       throw error;
     }

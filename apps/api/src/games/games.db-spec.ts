@@ -10,7 +10,7 @@ import { createPrismaClient } from '@openchess/database';
 import { AppModule } from '../app/app.module';
 import { seedMembers } from '../testing/seed-members';
 import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../identity/cookies';
+import { ACCESS_COOKIE } from '../app/auth/infrastructure/http/cookies';
 import type { GameAck, GameView } from '@openchess/contracts';
 import { MESSAGE_LIMIT } from './games.gateway';
 

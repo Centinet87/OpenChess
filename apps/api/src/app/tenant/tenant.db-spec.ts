@@ -4,9 +4,9 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createPrismaClient } from '@openchess/database';
-import { AppModule } from '../app/app.module';
-import { configureApp } from '../app/configure-app';
-import { ACCESS_COOKIE } from '../identity/cookies';
+import { AppModule } from '../app.module';
+import { configureApp } from '../configure-app';
+import { ACCESS_COOKIE } from '../auth/infrastructure/http/cookies';
 
 config({ path: '../../.env', quiet: true });
 

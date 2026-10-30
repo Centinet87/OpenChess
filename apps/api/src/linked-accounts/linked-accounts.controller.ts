@@ -44,11 +44,11 @@ import { ClsService } from 'nestjs-cls';
 import { hasPermission } from '@openchess/clubs';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
 import { PermissionGuard, RequirePermission } from '../clubs/permission.guard';
-import { perIpAndUser } from '../common/throttler.guard';
-import { ZodPipe } from '../common/zod.pipe';
-import { ENV } from '../config/config.module';
-import { secureCookies, type Env } from '../config/env';
-import { AuthGuard } from '../identity/auth.guard';
+import { perIpAndUser } from '../app/common/throttler.guard';
+import { ZodPipe } from '../app/common/zod.pipe';
+import { ENV } from '../app/config/config.module';
+import { secureCookies, type Env } from '../app/config/env';
+import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
 import { pkcePair, type LichessOAuth } from './lichess';
 import { oauthCallbackSchema } from './linked-accounts.schemas';
 import {
