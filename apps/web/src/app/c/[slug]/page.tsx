@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AuthScreen } from '../../../components/AuthScreen';
+import { canAdminister } from '../../../components/admin/labels';
 import { RoleTag } from '../../../components/RoleTag';
 import { Topbar } from '../../../components/Topbar';
 import {
@@ -94,7 +95,15 @@ function ClubHome({ me, club }: { me: Profile; club: MyClubView }) {
   return (
     <main className="shell">
       <Topbar me={me} clubName={club.name} />
-      <p className="eyebrow">{club.role.name}</p>
+      <p className="eyebrow">
+        {club.role.name}
+        {myRole && canAdminister(myRole) && (
+          <>
+            {' · '}
+            <a href="/admin">Panel de administración</a>
+          </>
+        )}
+      </p>
       <h1 className="page-title">{club.name}</h1>
 
       <div className="grid-2" style={{ marginTop: 'var(--space-8)' }}>

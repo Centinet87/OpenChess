@@ -674,3 +674,109 @@ select:focus {
     animation: none !important;
   }
 }
+
+/* ---------- Panel de administración ---------- */
+
+.admin-panel {
+  max-width: 760px;
+}
+
+.admin-row {
+  flex-wrap: wrap;
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-row-actions select,
+.inline-form input {
+  width: auto;
+  min-width: 140px;
+}
+
+.inline-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.role-item {
+  display: block !important;
+  padding: var(--space-4) 0 !important;
+}
+
+.role-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.role-perms {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.role-editor {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.role-editor .actions {
+  margin-top: 0;
+}
+
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.perm-grid legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+
+.perm-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.perm-check input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  accent-color: var(--felt);
+}
+
+.color-field {
+  max-width: 120px;
+}
+
+.color-field input {
+  padding: 4px;
+  cursor: pointer;
+}
+
+.plan-usage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 1.125rem;
+}

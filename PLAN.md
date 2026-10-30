@@ -115,7 +115,7 @@ Se usan donde el problema los pide, no como meta:
 - Plan gratis con límite de 15 miembros y plan Pro sin límite, con suscripción mensual de Mercado Pago (`libs/billing`). Lo paga y lo cancela solo el dueño del club. El club pasa a Pro cuando Mercado Pago confirma el pago: el webhook se valida con su firma y el estado se consulta a la API, nunca se confía en el aviso. Si un club Pro cancela con más de 15 miembros, nadie sale, pero no entran nuevos.
 - `GET /club/plan`, `POST /club/plan/checkout` (devuelve el link de pago), `POST /club/plan/cancel` y `POST /billing/mercadopago/webhook`.
 
-### Panel de administración del club — pendiente (solo front)
+### Panel de administración del club — hecho (`/admin` en el subdominio del club)
 
 Una sección del club (p. ej. `miclub.openchess.app/admin`) para quien tiene permisos de gestión. La API ya existe; falta la pantalla. Cada parte se muestra según los permisos de `GET /club/me`, y la API vuelve a comprobarlos.
 
