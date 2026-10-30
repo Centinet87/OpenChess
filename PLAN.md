@@ -115,6 +115,29 @@ Se usan donde el problema los pide, no como meta:
 - Plan gratis con límite de 15 miembros y plan Pro sin límite, con suscripción mensual de Mercado Pago (`libs/billing`). Lo paga y lo cancela solo el dueño del club. El club pasa a Pro cuando Mercado Pago confirma el pago: el webhook se valida con su firma y el estado se consulta a la API, nunca se confía en el aviso. Si un club Pro cancela con más de 15 miembros, nadie sale, pero no entran nuevos.
 - `GET /club/plan`, `POST /club/plan/checkout` (devuelve el link de pago), `POST /club/plan/cancel` y `POST /billing/mercadopago/webhook`.
 
+### Panel de administración del club — pendiente (solo front)
+
+Una sección del club (p. ej. `miclub.openchess.app/admin`) para quien tiene permisos de gestión. La API ya existe; falta la pantalla. Cada parte se muestra según los permisos de `GET /club/me`, y la API vuelve a comprobarlos.
+
+- **Miembros** (`REMOVE_MEMBERS`, `MANAGE_ROLES`): buscar, cambiar el rol y sacar del club, solo a quienes están por debajo del propio rol.
+- **Roles** (`MANAGE_ROLES`): crear, renombrar, elegir color, marcar permisos, reordenar arrastrando (solo el dueño) y borrar los que nadie usa.
+- **Invitaciones** (`INVITE_MEMBERS`): generar links por rol y ver cuántos cupos quedan en el plan.
+- **Elo FIDE** (`MANAGE_FIDE`): asignar, actualizar y quitar el FIDE ID de cada miembro.
+- **Plan** (solo el dueño): ver el plan y los miembros usados, pagar el Pro en Mercado Pago y cancelarlo.
+- **Partidas**: ver las del club con filtros por estado y jugador.
+
+### Panel de administración de la plataforma — pendiente (backend y front)
+
+Para operar OpenChess, fuera de cualquier club (p. ej. `admin.openchess.app`). Necesita backend nuevo.
+
+- **Superadmin:** marca en `users` que no da acceso a los datos de ningún club por RLS. Sus consultas usan un rol de BD aparte, de solo lectura salvo acciones explícitas, y cada acción queda registrada en una tabla de auditoría.
+- **Clubes:** lista con miembros, plan, fecha de creación y última actividad; suspender o reactivar un club.
+- **Usuarios:** buscar por email, ver sus clubes, cerrar sus sesiones y bloquear la cuenta. Sin ver contraseñas ni tokens.
+- **Suscripciones:** estado en Mercado Pago de cada club Pro, pagos fallidos y cancelaciones.
+- **Métricas:** clubes y usuarios activos, partidas por día, conversión de gratis a Pro.
+- **Seguridad:** acceso con verificación en dos pasos y rate limit propio; `admin` ya es un subdominio reservado.
+- Antes de construirlo: revisar con `security-audit`, porque es la única puerta que salta el aislamiento entre clubes.
+
 ### Fuera del MVP
 
 Torneos suizos o round-robin, análisis con Stockfish (WASM), puzzles, tareas de profesor a alumno, app móvil y dominios personalizados.
