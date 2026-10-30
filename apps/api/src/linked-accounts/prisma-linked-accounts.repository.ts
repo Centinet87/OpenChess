@@ -8,7 +8,7 @@ import type {
   OnlineRatings,
   Platform,
 } from '@openchess/linked-accounts';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 type DbPlatform = 'LICHESS' | 'CHESSCOM';
 

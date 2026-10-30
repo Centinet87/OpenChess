@@ -4,8 +4,11 @@ import { APP_FILTER } from '@nestjs/core';
 import { BillingUseCases } from '@openchess/billing';
 import { ClubsUseCases } from '@openchess/clubs';
 import { BillingModule } from '../billing/billing.module';
-import { generateOpaqueToken, sha256 } from '../identity/crypto';
-import { IdentityModule } from '../identity/identity.module';
+import {
+  generateOpaqueToken,
+  sha256,
+} from '../app/auth/infrastructure/security/crypto';
+import { AuthModule } from '../app/auth/auth.module';
 import { ClubErrorFilter } from './club-error.filter';
 import { ClubMemberGuard } from './club-member.guard';
 import {
@@ -17,7 +20,7 @@ import {
 import { PrismaClubsRepository } from './prisma-clubs.repository';
 
 @Module({
-  imports: [IdentityModule, BillingModule],
+  imports: [AuthModule, BillingModule],
   controllers: [
     ClubsController,
     ClubController,

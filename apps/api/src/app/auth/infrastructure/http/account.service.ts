@@ -16,10 +16,10 @@ import {
   tenantTransaction,
   withTenantContext,
 } from '@openchess/database';
-import { isLastOwnerError } from '../clubs/prisma-clubs.repository';
-import { BASE_PRISMA } from '../infrastructure/prisma.module';
-import { ClubSlugCache } from '../tenant/club-slug.cache';
-import { verifyPassword } from './crypto';
+import { isLastOwnerError } from '../../../../clubs/prisma-clubs.repository';
+import { BASE_PRISMA } from '../../../infrastructure/prisma.module';
+import { ClubSlugCache } from '../../../tenant/club-slug.cache';
+import { verifyPassword } from '../security/crypto';
 
 type Base = ReturnType<typeof createPrismaClient>;
 

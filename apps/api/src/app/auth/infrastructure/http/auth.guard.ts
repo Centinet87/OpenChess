@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
-import { AuthService } from './auth.service';
+import { AuthService } from '../../application/auth.service';
 import { ACCESS_COOKIE } from './cookies';
 
 // Errores que lanza jsonwebtoken (vía @nestjs/jwt) cuando el token no sirve.

@@ -18,12 +18,12 @@ import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { z } from 'zod';
 import { ClubMemberGuard } from '../clubs/club-member.guard';
-import { ZodPipe } from '../common/zod.pipe';
-import { clubOrigin } from '../tenant/club-slug';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { AuthGuard } from '../identity/auth.guard';
-import { AuthService } from '../identity/auth.service';
+import { ZodPipe } from '../app/common/zod.pipe';
+import { clubOrigin } from '../app/tenant/club-slug';
+import { ENV } from '../app/config/config.module';
+import type { Env } from '../app/config/env';
+import { AuthGuard } from '../app/auth/infrastructure/http/auth.guard';
+import { AuthService } from '../app/auth/application/auth.service';
 import { isValidWebhookSignature } from './mercadopago';
 
 /** Plan del club: lo ve cualquier miembro; lo cambia solo el dueño. */
