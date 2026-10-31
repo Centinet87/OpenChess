@@ -1,18 +1,18 @@
-import { randomUUID } from 'node:crypto';
-import { config } from 'dotenv';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import request from 'supertest';
+import { Test } from '@nestjs/testing';
 import { createPrismaClient } from '@openchess/database';
+import { config } from 'dotenv';
+import { randomUUID } from 'node:crypto';
+import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../configure-app';
-import { AccountEmailsService } from '../infrastructure/services/account-emails.service';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
 import {
   MAILER,
   type Email,
   type Mailer,
-} from '../infrastructure/email/mailer';
+} from '../application/email/mailer.port';
+import { AccountEmailsUseCases } from '../application/use-cases/account-emails.use-cases';
 
 config({ path: '../../.env', quiet: true });
 
@@ -30,7 +30,7 @@ let app: NestExpressApplication;
 
 /** El token del último email con ese asunto, sacado del link. */
 async function lastToken(subject: string): Promise<string> {
-  await app.get(AccountEmailsService).idle();
+  await app.get(AccountEmailsUseCases).idle();
   const mail = [...sent].reverse().find((e) => e.subject.includes(subject));
   const match = mail?.text.match(/token=([A-Za-z0-9_-]+)/);
   if (!match) throw new Error(`No llegó el email "${subject}"`);
@@ -97,7 +97,7 @@ describe('emails de la cuenta', () => {
     await post('forgot-password')
       .send({ email: `nadie-${email}` })
       .expect(204);
-    await app.get(AccountEmailsService).idle();
+    await app.get(AccountEmailsUseCases).idle();
     expect(sent.length).toBe(before);
 
     await post('forgot-password').send({ email }).expect(204);

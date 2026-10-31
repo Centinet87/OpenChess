@@ -1,14 +1,14 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { config } from 'dotenv';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import request from 'supertest';
+import { Test } from '@nestjs/testing';
 import { createPrismaClient } from '@openchess/database';
+import { config } from 'dotenv';
+import { createHash, randomUUID } from 'node:crypto';
+import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../configure-app';
-import { REFRESH_GRACE_MS } from '../domain/auth.types';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
-import { AccountEmailsService } from '../infrastructure/services/account-emails.service';
+import { AccountEmailsUseCases } from '../application/use-cases/account-emails.use-cases';
+import { REFRESH_GRACE_MS } from '../domain/auth.types';
 
 config({ path: '../../.env', quiet: true });
 
@@ -49,7 +49,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await app.get(AccountEmailsService).idle();
+  await app.get(AccountEmailsUseCases).idle();
   await base.user.deleteMany({ where: { email: { contains: email } } });
   await base.$disconnect();
   await app.close();
@@ -170,7 +170,7 @@ describe('auth', () => {
       );
       expect(statuses.sort()).toEqual([201, 409]);
     } finally {
-      await app.get(AccountEmailsService).idle();
+      await app.get(AccountEmailsUseCases).idle();
       await base.user.deleteMany({ where: { email: dup } });
     }
   });

@@ -1,4 +1,4 @@
-import type { RoleGrant } from '@openchess/clubs';
+import type { RoleGrant } from '../clubs/domain/entities/role';
 
 // Claves del contexto de la request: así un typo en cls.get/cls.set no compila.
 declare module 'nestjs-cls' {

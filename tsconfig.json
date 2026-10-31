@@ -13,21 +13,6 @@
       "path": "./libs/database"
     },
     {
-      "path": "./libs/clubs"
-    },
-    {
-      "path": "./libs/games"
-    },
-    {
-      "path": "./libs/ratings"
-    },
-    {
-      "path": "./libs/linked-accounts"
-    },
-    {
-      "path": "./libs/billing"
-    },
-    {
       "path": "./libs/contracts"
     }
   ],

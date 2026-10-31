@@ -11,9 +11,10 @@ import {
   Req,
   Res,
   UnauthorizedException,
-  UseGuards,
   UseFilters,
+  UseGuards,
 } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
@@ -21,7 +22,32 @@ import { perIpAndUser } from '../../../common/throttler.guard';
 import { ZodPipe } from '../../../common/zod.pipe';
 import { ENV } from '../../../config/config.module';
 import type { Env } from '../../../config/env';
-import { AuthGuard } from '../guards/auth.guard';
+import {
+  ChangePasswordCommand,
+  ConfirmEmailChangeCommand,
+  DeleteAccountCommand,
+  LoginCommand,
+  LogoutCommand,
+  QueueVerificationCommand,
+  RefreshSessionCommand,
+  RegisterCommand,
+  RequestEmailChangeCommand,
+  RequestPasswordResetCommand,
+  ResetPasswordCommand,
+  UpdateProfileCommand,
+  VerifyEmailCommand,
+} from '../../application/commands/auth.commands';
+import {
+  ExportAccountQuery,
+  GetCurrentUserQuery,
+} from '../../application/queries/auth.queries';
+import { AuthError } from '../../domain/auth.error';
+import type { Registration, Session } from '../../domain/auth.types';
+import {
+  clearSessionCookies,
+  REFRESH_COOKIE,
+  setSessionCookies,
+} from '../cookies/session.cookies';
 import {
   changeEmailSchema,
   changePasswordSchema,
@@ -31,47 +57,21 @@ import {
   registerSchema,
   resetPasswordSchema,
   tokenSchema,
+  updateProfileSchema,
+  type AccountExport,
   type ChangeEmailInput,
   type ChangePasswordInput,
   type DeleteAccountInput,
   type ForgotPasswordInput,
   type LoginInput,
+  type Profile,
   type RegisterInput,
   type ResetPasswordInput,
   type TokenInput,
   type UpdateProfileInput,
-  updateProfileSchema,
-  type AccountExport,
-  type Profile,
-} from '@openchess/contracts';
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import {
-  RegisterCommand,
-  LoginCommand,
-  RefreshSessionCommand,
-  LogoutCommand,
-  UpdateProfileCommand,
-  ChangePasswordCommand,
-  QueueVerificationCommand,
-  VerifyEmailCommand,
-  RequestPasswordResetCommand,
-  ResetPasswordCommand,
-  RequestEmailChangeCommand,
-  ConfirmEmailChangeCommand,
-  DeleteAccountCommand,
-} from '../../application/commands/auth.commands';
-import {
-  GetCurrentUserQuery,
-  ExportAccountQuery,
-} from '../../application/queries/auth.queries';
-import type { Registration, Session } from '../../domain/auth.types';
-import { AuthError } from '../../domain/auth.error';
+} from '../dtos/auth.dto';
 import { AuthExceptionFilter } from '../filters/auth-exception.filter';
-import {
-  clearSessionCookies,
-  REFRESH_COOKIE,
-  setSessionCookies,
-} from '../cookies/session.cookies';
+import { AuthGuard } from '../guards/auth.guard';
 
 // Login y registro: 5 intentos por minuto por IP y email, y por usuario si hay
 // sesión (ver AppThrottlerGuard).
