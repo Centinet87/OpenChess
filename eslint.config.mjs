@@ -121,6 +121,71 @@ export const asyncRules = [
 
 export default [
   ...architectureRules,
+  {
+    basePath: fileURLToPath(new URL('.', import.meta.url)),
+    files: ['apps/web/src/{shared,features}/**/*.{ts,tsx}'],
+    plugins: { import: importPlugin },
+    settings: {
+      'import/resolver': { node: { extensions: ['.ts', '.tsx', '.js'] } },
+    },
+    rules: {
+      'import/no-restricted-paths': [
+        'error',
+        {
+          basePath: fileURLToPath(new URL('.', import.meta.url)),
+          zones: [
+            {
+              target: './apps/web/src/shared',
+              from: ['./apps/web/src/features', './apps/web/src/app'],
+              message: 'Shared no depende de funcionalidades ni rutas.',
+            },
+            {
+              target: './apps/web/src/features',
+              from: './apps/web/src/app',
+              message: 'Las funcionalidades no dependen de las rutas de Next.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    basePath: fileURLToPath(new URL('.', import.meta.url)),
+    files: ['apps/web/src/features/**/*.{ts,tsx}'],
+    ignores: ['apps/web/src/features/*/api/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'axios',
+              message: 'Utiliza la API tipada de la funcionalidad.',
+            },
+          ],
+          patterns: [
+            {
+              regex: '(^|/)shared/api/client$',
+              importNames: ['api'],
+              message:
+                'Los componentes y hooks llaman a la API de su funcionalidad.',
+            },
+            {
+              regex: '^@/app/',
+              message: 'Las funcionalidades no dependen de las rutas de Next.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='fetch']",
+          message: 'Las llamadas HTTP usan el cliente Axios compartido.',
+        },
+      ],
+    },
+  },
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],

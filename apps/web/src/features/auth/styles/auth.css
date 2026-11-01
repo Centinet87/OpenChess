@@ -1,0 +1,47 @@
+/* ---------- Pantalla de acceso ---------- */
+
+.auth {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: var(--space-12);
+  align-items: center;
+  min-height: 70vh;
+}
+
+@media (max-width: 860px) {
+  .auth {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+}
+
+.auth-art {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  aspect-ratio: 1;
+  max-width: 320px;
+  border: 10px solid #5a3b26;
+  border-radius: 8px;
+  margin-top: var(--space-8);
+  box-shadow: 0 18px 40px -20px rgb(28 26 23 / 0.6);
+}
+
+.auth-art span:nth-child(odd) {
+  background: var(--wood-light);
+}
+
+.auth-art span:nth-child(even) {
+  background: var(--wood-dark);
+}
+
+/* Fila par: invierte el patrón para que sea un tablero de verdad. */
+
+.auth-art span:nth-child(n + 5):nth-child(-n + 8):nth-child(odd),
+.auth-art span:nth-child(n + 13):nth-child(odd) {
+  background: var(--wood-dark);
+}
+
+.auth-art span:nth-child(n + 5):nth-child(-n + 8):nth-child(even),
+.auth-art span:nth-child(n + 13):nth-child(even) {
+  background: var(--wood-light);
+}

@@ -295,6 +295,73 @@ cases.push(
 );
 
 const root = fileURLToPath(new URL('.', import.meta.url));
+const webCases = [
+  [
+    'apps/web/src/shared/api/client.ts',
+    'import { authApi } from "../../features/auth/api/auth.api";',
+    false,
+  ],
+  [
+    'apps/web/src/features/auth/components/AuthForm.tsx',
+    'import axios from "axios";',
+    false,
+  ],
+  [
+    'apps/web/src/features/auth/components/AuthForm.tsx',
+    'import {api} from "../../../shared/api/client";',
+    false,
+  ],
+  [
+    'apps/web/src/features/auth/components/AuthForm.tsx',
+    'import {errorMessage} from "../../../shared/api/client";',
+    true,
+  ],
+  [
+    'apps/web/src/features/auth/components/AuthForm.tsx',
+    'import {authApi} from "../api/auth.api";',
+    true,
+  ],
+  [
+    'apps/web/src/features/clubs/screens/ClubPage.tsx',
+    'import Page from "../../../app/page";',
+    false,
+  ],
+  [
+    'apps/web/src/features/clubs/screens/ClubPage.tsx',
+    'fetch("/api/clubs");',
+    false,
+  ],
+  [
+    'apps/web/src/features/clubs/api/clubs.api.ts',
+    'import {api} from "../../../shared/api/client";',
+    true,
+  ],
+];
+for (const cwd of [root, resolve(root, 'apps/web')]) {
+  const scoped = cwd === root ? eslint : new ESLint({ cwd });
+  for (const [filePath, code, allowed] of webCases) {
+    test(
+      cwd + ': front ' + code + (allowed ? ' permitido' : ' bloqueado'),
+      async () => {
+        const [result] = await scoped.lintText(code, {
+          filePath: relative(cwd, resolve(root, filePath)),
+        });
+        const violations = result.messages.filter((message) =>
+          [
+            'no-restricted-imports',
+            'import/no-restricted-paths',
+            'no-restricted-syntax',
+          ].includes(message.ruleId),
+        );
+        assert.equal(
+          violations.length > 0,
+          !allowed,
+          JSON.stringify(result.messages),
+        );
+      },
+    );
+  }
+}
 for (const cwd of [root, resolve(root, 'apps/api')]) {
   const scoped = cwd === root ? eslint : new ESLint({ cwd });
   for (const [filePath, dependency, allowed] of cases) {
