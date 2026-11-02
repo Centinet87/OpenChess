@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import { defaultRoles } from '@openchess/clubs';
 import type { createPrismaClient } from '@openchess/database';
+import { randomUUID } from 'node:crypto';
+import { defaultRoles } from '../app/clubs/domain/entities/role';
 
 type Base = ReturnType<typeof createPrismaClient>;
 export type DefaultRole = 'Admin' | 'Profesor' | 'Alumno';

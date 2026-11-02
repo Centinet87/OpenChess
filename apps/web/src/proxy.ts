@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { clubSlugFromHost } from './lib/host';
+import { clubSlugFromHost } from './shared/lib/host';
 
 /**
  * miclub.openchess.app/games/123 → /c/miclub/games/123.

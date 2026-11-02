@@ -1,37 +1,35 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { Logger, Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
+import { JwtModule } from '@nestjs/jwt';
 import { ENV } from '../config/config.module';
 import type { Env } from '../config/env';
-import { IssueSession } from './application/use-cases/issue-session';
-import { RegisterUseCase } from './application/use-cases/register.use-case';
-import { LoginUseCase } from './application/use-cases/login.use-case';
-import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
-import { LogoutUseCase } from './application/use-cases/logout.use-case';
-import { GetCurrentUserUseCase } from './application/use-cases/get-current-user.use-case';
-import { VerifyAccessTokenUseCase } from './application/use-cases/verify-access-token.use-case';
 import { AuthController } from './api/controllers/auth.controller';
 import { AuthExceptionFilter } from './api/filters/auth-exception.filter';
 import { AuthGuard } from './api/guards/auth.guard';
 import { AUTH_COMMAND_HANDLERS } from './api/handlers/auth-command.handlers';
 import { AUTH_QUERY_HANDLERS } from './api/handlers/auth-query.handlers';
-import { PrismaAuthRepository } from './infrastructure/repositories/prisma-auth.repository';
-import { NodeAuthCrypto } from './infrastructure/security/node-auth.crypto';
-import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
-import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
+import { MAILER, type Mailer } from './application/email/mailer.port';
 import {
   AccountEmailOperations,
   AccountOperations,
 } from './application/repositories/account.operations';
-import { AccountEmailsService } from './infrastructure/services/account-emails.service';
-import { AccountService } from './infrastructure/services/account.service';
+import { AccountEmailsUseCases } from './application/use-cases/account-emails.use-cases';
+import { AccountUseCases } from './application/use-cases/account.use-cases';
+import { ChangePasswordUseCase } from './application/use-cases/change-password.use-case';
+import { GetCurrentUserUseCase } from './application/use-cases/get-current-user.use-case';
+import { IssueSession } from './application/use-cases/issue-session';
+import { LoginUseCase } from './application/use-cases/login.use-case';
+import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
+import { RegisterUseCase } from './application/use-cases/register.use-case';
+import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
+import { VerifyAccessTokenUseCase } from './application/use-cases/verify-access-token.use-case';
+import { LogMailer, ResendMailer } from './infrastructure/email/mailer';
+import { PrismaAccountRepository } from './infrastructure/repositories/prisma-account.repository';
+import { PrismaAuthRepository } from './infrastructure/repositories/prisma-auth.repository';
+import { PrismaEmailTokenRepository } from './infrastructure/repositories/prisma-email-token.repository';
+import { NodeAuthCrypto } from './infrastructure/security/node-auth.crypto';
 import { TokenCleanup } from './infrastructure/services/token-cleanup';
-import {
-  LogMailer,
-  MAILER,
-  ResendMailer,
-  type Mailer,
-} from './infrastructure/email/mailer';
 
 @Module({
   imports: [
@@ -118,11 +116,36 @@ import {
         issueSession: IssueSession,
       ) => new ChangePasswordUseCase(repository, crypto, issueSession),
     },
-    AccountEmailsService,
-    AccountService,
+    PrismaEmailTokenRepository,
+    PrismaAccountRepository,
+    {
+      provide: AccountEmailsUseCases,
+      inject: [PrismaEmailTokenRepository, NodeAuthCrypto, MAILER, ENV],
+      useFactory: (
+        repository: PrismaEmailTokenRepository,
+        crypto: NodeAuthCrypto,
+        mailer: Mailer,
+        env: Env,
+      ) =>
+        new AccountEmailsUseCases(
+          repository,
+          crypto,
+          mailer,
+          env.PUBLIC_URL,
+          new Logger(AccountEmailsUseCases.name),
+        ),
+    },
+    {
+      provide: AccountUseCases,
+      inject: [PrismaAccountRepository, NodeAuthCrypto],
+      useFactory: (
+        repository: PrismaAccountRepository,
+        crypto: NodeAuthCrypto,
+      ) => new AccountUseCases(repository, crypto),
+    },
     TokenCleanup,
-    { provide: AccountEmailOperations, useExisting: AccountEmailsService },
-    { provide: AccountOperations, useExisting: AccountService },
+    { provide: AccountEmailOperations, useExisting: AccountEmailsUseCases },
+    { provide: AccountOperations, useExisting: AccountUseCases },
     {
       provide: MAILER,
       inject: [ENV],

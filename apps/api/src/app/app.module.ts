@@ -7,21 +7,21 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ClsModule } from 'nestjs-cls';
-import { ConfigModule } from './config/config.module';
-import { ClubsModule } from '../clubs/clubs.module';
-import { GamesModule } from '../games/games.module';
+import { AuthModule } from './auth/auth.module';
+import { ClubsModule } from './clubs/clubs.module';
 import {
   AppThrottlerGuard,
   EMAIL_THROTTLER,
   USER_THROTTLER,
 } from './common/throttler.guard';
-import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from './config/config.module';
+import { GamesModule } from './games/games.module';
+import { HealthModule } from './health/health.module';
 import { PrismaModule } from './infrastructure/prisma.module';
-import { LinkedAccountsModule } from '../linked-accounts/linked-accounts.module';
-import { RatingsModule } from '../ratings/ratings.module';
-import { TenantMiddleware } from './tenant/tenant.middleware';
+import { LinkedAccountsModule } from './linked-accounts/linked-accounts.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { TenantMiddleware } from './tenant/api/middleware/tenant.middleware';
 import { TenantModule } from './tenant/tenant.module';
-import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -33,6 +33,7 @@ import { AppController } from './app.controller';
       USER_THROTTLER,
     ]),
     ConfigModule,
+    HealthModule,
     PrismaModule,
     TenantModule,
     AuthModule,
@@ -41,7 +42,6 @@ import { AppController } from './app.controller';
     RatingsModule,
     LinkedAccountsModule,
   ],
-  controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: AppThrottlerGuard }],
 })
 export class AppModule implements NestModule {

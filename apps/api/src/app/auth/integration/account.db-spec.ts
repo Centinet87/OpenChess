@@ -1,14 +1,14 @@
-import { randomUUID } from 'node:crypto';
-import { config } from 'dotenv';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import request from 'supertest';
+import { Test } from '@nestjs/testing';
 import { createPrismaClient } from '@openchess/database';
+import { config } from 'dotenv';
+import { randomUUID } from 'node:crypto';
+import request from 'supertest';
+import { seedMembers } from '../../../testing/seed-members';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../configure-app';
-import { seedMembers } from '../../../testing/seed-members';
-import { DELETED_NAME } from '../infrastructure/services/account.service';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
+import { DELETED_NAME } from '../application/use-cases/account.use-cases';
 
 config({ path: '../../.env', quiet: true });
 

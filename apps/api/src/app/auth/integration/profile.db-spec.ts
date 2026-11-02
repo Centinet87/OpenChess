@@ -1,18 +1,18 @@
-import { randomUUID } from 'node:crypto';
-import { config } from 'dotenv';
-import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import request from 'supertest';
+import { Test } from '@nestjs/testing';
 import { createPrismaClient } from '@openchess/database';
+import { config } from 'dotenv';
+import { randomUUID } from 'node:crypto';
+import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { configureApp } from '../../configure-app';
-import { AccountEmailsService } from '../infrastructure/services/account-emails.service';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '../api/cookies/session.cookies';
 import {
   MAILER,
   type Email,
   type Mailer,
-} from '../infrastructure/email/mailer';
+} from '../application/email/mailer.port';
+import { AccountEmailsUseCases } from '../application/use-cases/account-emails.use-cases';
 
 config({ path: '../../.env', quiet: true });
 
@@ -105,7 +105,7 @@ describe('mi cuenta', () => {
       .send({ currentPassword: password, newPassword })
       .expect(204);
     // Llega el aviso al email de la cuenta.
-    await app.get(AccountEmailsService).idle();
+    await app.get(AccountEmailsUseCases).idle();
     expect(sent.at(-1)).toMatchObject({
       to: email,
       subject: expect.stringContaining('contraseña'),
@@ -139,7 +139,7 @@ describe('cambiar el email', () => {
 
   /** El token del último link para confirmar un email nuevo que llegó a esa dirección. */
   async function tokenSentTo(to: string): Promise<string | undefined> {
-    await app.get(AccountEmailsService).idle();
+    await app.get(AccountEmailsUseCases).idle();
     const mail = [...sent]
       .reverse()
       .find((e) => e.to === to && e.subject.includes('nuevo email'));
@@ -204,7 +204,7 @@ describe('cambiar el email', () => {
     expect(me.body).toMatchObject({ email: after, emailVerified: true });
 
     // Al email de antes le llega el aviso.
-    await app.get(AccountEmailsService).idle();
+    await app.get(AccountEmailsUseCases).idle();
     expect(sent.at(-1)).toMatchObject({
       to: before,
       subject: expect.stringContaining('email'),
