@@ -27,16 +27,18 @@ export function refreshSession(): Promise<void> {
   return refreshing;
 }
 
+// A 401 here is not an expired session: the refresh failed or the password is wrong.
+const NO_REFRESH_ROUTES = new Set(['/auth/refresh', '/auth/login']);
+
 // Si el access token venció (15 min), se renueva con el refresh y se reintenta una vez.
 api.interceptors.response.use(undefined, async (error: AxiosError) => {
   const original = error.config as
     (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
-  const isAuthRoute = original?.url?.startsWith('/auth/');
   if (
     error.response?.status !== 401 ||
     !original ||
     original._retried ||
-    isAuthRoute
+    NO_REFRESH_ROUTES.has(original.url ?? '')
   ) {
     throw error;
   }
