@@ -104,6 +104,33 @@ afterAll(async () => {
 });
 
 describe('RLS entre clubes', () => {
+  it('mantiene el rol y el aislamiento dentro de una transacción compuesta', async () => {
+    context = { clubId: clubA, userId: userA };
+    await db.$tenantTransaction(async (tx) => {
+      const roles = await tx.$queryRaw<
+        Array<{ role: string }>
+      >`SELECT current_user AS role`;
+      expect(roles[0].role).toBe('app_user');
+      const rows = await tx.invitation.findMany();
+      expect(rows).toHaveLength(1);
+      expect(rows[0].clubId).toBe(clubA);
+    });
+    context = {};
+    const rows = await db.$tenantTransaction((tx) => tx.invitation.findMany());
+    expect(rows).toHaveLength(0);
+  });
+
+  it('rechaza escrituras de otro club en una transacción compuesta', async () => {
+    context = { clubId: clubA, userId: userA };
+    await expect(
+      db.$tenantTransaction((tx) =>
+        tx.membership.create({
+          data: { clubId: clubB, userId: userA, roleId: roles.ownerB },
+        }),
+      ),
+    ).rejects.toThrow();
+  });
+
   it('en el club A solo se ven sus membresías, aunque la consulta no filtre', async () => {
     context = { clubId: clubA, userId: userA };
     const rows = await db.membership.findMany();

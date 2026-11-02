@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { BillingUseCases, type PaymentGateway } from '@openchess/billing';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { IdentityModule } from '../identity/identity.module';
+import { ENV } from '../app/config/config.module';
+import type { Env } from '../app/config/env';
+import { AuthModule } from '../app/auth/auth.module';
 import { BillingErrorFilter } from './billing-error.filter';
 import {
   MercadoPagoWebhookController,
@@ -17,7 +17,7 @@ export const PAYMENT_GATEWAY = Symbol('PAYMENT_GATEWAY');
 
 /** Planes del club y suscripción con Mercado Pago. */
 @Module({
-  imports: [IdentityModule],
+  imports: [AuthModule],
   controllers: [PlanController, MercadoPagoWebhookController],
   providers: [
     PrismaSubscriptionsRepository,

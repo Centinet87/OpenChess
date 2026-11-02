@@ -1,6 +1,6 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { BASE_PRISMA } from '../infrastructure/prisma.module';
+import { BASE_PRISMA } from './infrastructure/prisma.module';
 import { AppController } from './app.controller';
 
 async function controller(queryRaw: () => Promise<unknown>) {

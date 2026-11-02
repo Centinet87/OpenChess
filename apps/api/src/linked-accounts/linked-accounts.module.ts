@@ -8,9 +8,9 @@ import {
   type FideDirectory,
   type Platform,
 } from '@openchess/linked-accounts';
-import { ENV } from '../config/config.module';
-import type { Env } from '../config/env';
-import { IdentityModule } from '../identity/identity.module';
+import { ENV } from '../app/config/config.module';
+import type { Env } from '../app/config/env';
+import { AuthModule } from '../app/auth/auth.module';
 import { ChessComClient } from './chesscom';
 import { FideClient } from './fide';
 import { ImportedGamesHub } from './imported-games.hub';
@@ -38,7 +38,7 @@ const userAgent = (env: Env) => `OpenChess (+${env.PUBLIC_URL})`;
 
 /** Cuentas de Lichess y Chess.com, importación de sus partidas y Elo FIDE de los miembros. */
 @Module({
-  imports: [IdentityModule],
+  imports: [AuthModule],
   controllers: [
     LinkedAccountsController,
     LichessOAuthController,

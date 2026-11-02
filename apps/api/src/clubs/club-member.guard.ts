@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Permission } from '@openchess/clubs';
 import { ClsService } from 'nestjs-cls';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 /**
  * Exige que la request venga del subdominio de un club y que el usuario sea

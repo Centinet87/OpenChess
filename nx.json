@@ -73,7 +73,7 @@
     }
   ],
   "analytics": false,
-  "defaultBase": "origin/desa",
+  "defaultBase": "origin/main",
   "targetDefaults": {
     "test": {
       "dependsOn": ["^build"]

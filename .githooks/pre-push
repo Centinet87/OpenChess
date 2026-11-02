@@ -1,4 +1,4 @@
 #!/bin/sh
-# Corre lo mismo que el CI sobre lo que cambió respecto a origin/desa.
+# Corre lo mismo que el CI sobre lo que cambió respecto a origin/main.
 # Para saltarlo en un caso puntual: git push --no-verify
 npm run check

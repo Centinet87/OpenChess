@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { referenceRating, type FideRatings } from '@openchess/linked-accounts';
 import type { RatingSeeds } from '@openchess/ratings';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 /**
  * Rating inicial en el club a partir del Elo FIDE que asignó un admin. Solo se

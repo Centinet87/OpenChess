@@ -4,7 +4,7 @@ import type {
   FideLinksRepository,
   FideRatings,
 } from '@openchess/linked-accounts';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 interface FideRow {
   clubId: string;

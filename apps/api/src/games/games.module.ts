@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { GamesUseCases } from '@openchess/games';
-import { IdentityModule } from '../identity/identity.module';
+import { AuthModule } from '../app/auth/auth.module';
 import { GameClockScheduler } from './game-clock.scheduler';
 import { GameErrorFilter } from './game-errors';
 import { GameEventsHub } from './game-events.hub';
@@ -11,7 +11,7 @@ import { GamesGateway } from './games.gateway';
 import { PrismaGamesRepository } from './prisma-games.repository';
 
 @Module({
-  imports: [IdentityModule],
+  imports: [AuthModule],
   controllers: [GamesController],
   providers: [
     PrismaGamesRepository,

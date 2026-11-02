@@ -5,7 +5,7 @@ import type {
   SubscriptionsRepository,
 } from '@openchess/billing';
 import { createPrismaClient, tenantTransaction } from '@openchess/database';
-import { BASE_PRISMA, TenantPrisma } from '../infrastructure/prisma.module';
+import { BASE_PRISMA, TenantPrisma } from '../app/infrastructure/prisma.module';
 
 /** Suscripciones de los clubes. RLS limita todo al club del contexto. */
 @Injectable()

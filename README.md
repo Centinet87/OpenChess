@@ -50,7 +50,7 @@ npx nx run-many -t serve dev -p api web
 | `npx nx run database:migrate`  | Crea y aplica una migración en la BD local                                                                                                                                                     |
 | `npx nx run database:test-db`  | Tests de aislamiento entre clubes (RLS) contra el Postgres local. Necesita Docker arriba                                                                                                       |
 | `npx nx run api:test-db`       | Tests de la API contra el Postgres local (auth, clubes, partidas, ranking, cuentas). Necesita Docker arriba                                                                                    |
-| `npm run check`                | Formato, lint, typecheck, test, test-db y build de lo que cambió respecto a `origin/desa`. Corre antes de cada push. Necesita Docker arriba                                                    |
+| `npm run check`                | Formato, lint, typecheck, test, test-db y build de lo que cambió respecto a `origin/main`. Corre antes de cada push. Necesita Docker arriba                                                    |
 | `npx nx run api:seed-demo`     | Con la API levantada, crea el club `demo` (miembros, roles, partidas, ranking y una partida en curso) para probar el front en `demo.localhost:3000`. Con `--reset` lo borra y lo crea de nuevo |
 | `npx nx graph`                 | Muestra cómo dependen los proyectos entre sí                                                                                                                                                   |
 

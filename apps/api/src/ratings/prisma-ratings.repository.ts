@@ -8,7 +8,7 @@ import type {
   Score,
   Standing,
 } from '@openchess/ratings';
-import { TenantPrisma } from '../infrastructure/prisma.module';
+import { TenantPrisma } from '../app/infrastructure/prisma.module';
 
 interface RatingRow {
   clubId: string;
